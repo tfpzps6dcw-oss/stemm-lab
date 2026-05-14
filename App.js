@@ -4,25 +4,40 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import LoginScreen from './src/screens/LoginScreen';
+import RegisterScreen from './src/screens/RegisterScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import ActivityScreen from './src/screens/ActivityScreen';
+
+import { onAuthStateChanged } from './src/services/authService';
 import { loadTeam } from './src/services/teamStorage';
 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
   const [team, setTeam] = useState(null);
 
-  // Check for saved team on launch
+  // Subscribe to auth state changes on mount
   useEffect(() => {
-    async function checkForSavedTeam() {
-      const savedTeam = await loadTeam();
-      setTeam(savedTeam);
+    const unsubscribe = onAuthStateChanged(async (authUser) => {
+      setUser(authUser);
+
+      if (authUser) {
+        // User logged in → check if they have a team set up
+        const savedTeam = await loadTeam();
+        setTeam(savedTeam);
+      } else {
+        // User logged out → clear team state
+        setTeam(null);
+      }
+
       setLoading(false);
-    }
-    checkForSavedTeam();
+    });
+
+    return unsubscribe;
   }, []);
 
   if (loading) {
@@ -44,13 +59,29 @@ export default function App() {
             headerShadowVisible: false,
           }}
         >
-          {team ? (
-            // Team is set → main app flow
+          {!user ? (
+            // Not logged in → auth flow
             <>
               <Stack.Screen
-                name="Home"
+                name="Login"
+                component={LoginScreen}
                 options={{ headerShown: false }}
-              >
+              />
+              <Stack.Screen
+                name="Register"
+                component={RegisterScreen}
+                options={{ title: '', headerBackTitle: 'Back' }}
+              />
+            </>
+          ) : !team ? (
+            // Logged in but no team → onboarding
+            <Stack.Screen name="Onboarding" options={{ headerShown: false }}>
+              {() => <OnboardingScreen onComplete={setTeam} />}
+            </Stack.Screen>
+          ) : (
+            // Logged in with team → main app
+            <>
+              <Stack.Screen name="Home" options={{ headerShown: false }}>
                 {(props) => (
                   <HomeScreen
                     {...props}
@@ -65,11 +96,6 @@ export default function App() {
                 options={{ title: '', headerBackTitle: 'Back' }}
               />
             </>
-          ) : (
-            // No team → onboarding flow
-            <Stack.Screen name="Onboarding" options={{ headerShown: false }}>
-              {() => <OnboardingScreen onComplete={setTeam} />}
-            </Stack.Screen>
           )}
         </Stack.Navigator>
       </NavigationContainer>
