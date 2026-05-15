@@ -1,6 +1,5 @@
 // src/services/sqliteDb.js
-// Database initialization + schema for STEMM Lab
-// Uses expo-sqlite (Expo SDK)
+
 
 import * as SQLite from 'expo-sqlite';
 
@@ -58,7 +57,7 @@ async function initSchema(db) {
     await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION};`);
   }
 
-  // Future migrations: if (currentVersion < 2) { ...alter table... }
+  
 }
 
 /**
