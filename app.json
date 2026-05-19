@@ -15,7 +15,8 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "STEMM Lab needs the microphone to measure sound levels for the Sound Pollution Hunter activity."
+        "NSMicrophoneUsageDescription": "STEMM Lab needs the microphone to measure sound levels for the Sound Pollution Hunter activity.",
+        "NSCameraUsageDescription": "STEMM Lab uses the camera to record photos of your fan designs for the Hand Fan Challenge."
       }
     },
     "android": {
@@ -24,14 +25,20 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "permissions": ["RECORD_AUDIO"]
+      "permissions": ["RECORD_AUDIO", "CAMERA"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-sqlite",
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "STEMM Lab uses the camera to record photos of your fan designs."
+        }
+      ]
     ]
   }
 }
