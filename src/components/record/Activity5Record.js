@@ -1,6 +1,7 @@
 // STEM-132: Activity 5 (Stretch) Record tab — timed movement + smoothness output.
 
 import React, { useEffect, useState, useRef } from 'react';
+import { scheduleTimerWarning, cancelNotification } from '../../services/notificationService';
 import {
   View,
   Text,
@@ -16,7 +17,7 @@ import { saveResult } from '../../services/resultSaveHelper';
 const SAMPLE_INTERVAL_MS = 50; // 20 Hz
 const DEFAULT_DURATION_SEC = 5;
 const MIN_DURATION_SEC = 3;
-const MAX_DURATION_SEC = 15;
+const MAX_DURATION_SEC = 60;
 
 export default function Activity5Record({ activity }) {
   const [motion, setMotion] = useState('');
@@ -30,6 +31,7 @@ export default function Activity5Record({ activity }) {
 
   const sessionRef = useRef(null);
   const countdownRef = useRef(null);
+  const notificationIdRef = useRef(null);
 
   // Check accelerometer availability on mount
   useEffect(() => {
@@ -50,7 +52,17 @@ export default function Activity5Record({ activity }) {
       const session = await startSampling({ intervalMs: SAMPLE_INTERVAL_MS });
       sessionRef.current = session;
       setPhase('recording');
-
+      // STEM-144: For demo, fire a notification 10s in if duration > 15s
+      if (durationSec >= 15) {
+        const leadSec = Math.round(durationSec * 0.25); // notify when 25% of time remains
+        scheduleTimerWarning({
+          totalSec: durationSec,
+          leadSec,
+          activityName: motion.trim() || 'your motion',
+        })
+          .then((id) => { notificationIdRef.current = id; })
+          .catch(() => {});
+      }
       // Countdown timer — updates every 100ms for smooth display
       const endAt = Date.now() + durationSec * 1000;
       countdownRef.current = setInterval(() => {
@@ -65,11 +77,20 @@ export default function Activity5Record({ activity }) {
       }, 100);
     } catch (err) {
       setError(err.message);
+      // STEM-144: Cancel the timer warning if user aborts
+      if (notificationIdRef.current) {
+        cancelNotification(notificationIdRef.current).catch(() => {});
+        notificationIdRef.current = null;
+      }
       setPhase('idle');
     }
   }
 
   function finish() {
+    if (notificationIdRef.current) {
+        cancelNotification(notificationIdRef.current).catch(() => {});
+        notificationIdRef.current = null;
+      }
     if (!sessionRef.current) return;
     const { samples } = sessionRef.current.stop();
     sessionRef.current = null;
