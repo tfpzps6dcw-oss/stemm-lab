@@ -1,115 +1,360 @@
-// STEM-111: Activity 1 Results — reads saved attempts from SQLite, shows physics columns.
+// STEM-112: Activity 1 Results tab — loads saved attempts from SQLite, displays summary + physics.
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
-import ResultsTable from '../ResultsTable';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+} from 'react-native';
 import { getResultsByActivity } from '../../services/resultsService';
 import { loadTeam } from '../../services/teamStorage';
 
-// STEM-111: Columns chosen to reflect what we actually save (vs the paper write-up columns).
-const COLUMNS = ['Attempt', 'Fall time', 'Velocity', 'G-force', 'Sync'];
-
 export default function Activity1Results({ activity }) {
-  const [rows, setRows] = useState([]);
+  const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
 
-  const load = useCallback(async () => {
+  // STEM-112: Fetch saved results from SQLite on mount and when tab is revisited.
+  const fetchResults = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
       const team = await loadTeam();
-      // STEM-111: Filter to this team's results only — leaderboard view comes later.
-      const results = await getResultsByActivity(activity.id, {
+      const rows = await getResultsByActivity(String(activity.id), {
         teamId: team?.discriminator,
       });
-      setRows(results.map(formatRow));
+      setResults(rows);
     } catch (err) {
-      console.error('Activity1Results load failed:', err);
-      setRows([]);
+      console.error('Activity1Results: failed to load results', err);
+      setError('Could not load results. Try again.');
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, [activity.id]);
 
-  // STEM-111: Load on mount and on every re-render of this tab (tabs unmount/remount on switch).
   useEffect(() => {
-    load();
-  }, [load]);
+    fetchResults();
+  }, [fetchResults]);
 
-  function onPullToRefresh() {
-    setRefreshing(true);
-    load();
-  }
-
-  if (loading && rows.length === 0) {
+  if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator color="#7F77DD" />
+      <View style={styles.center}>
+        <ActivityIndicator color="#534AB7" />
+        <Text style={styles.loadingText}>Loading results…</Text>
       </View>
     );
   }
 
-  if (rows.length === 0) {
+  if (error) {
     return (
-      <View>
-        <Text style={styles.sectionTitle}>Your attempts</Text>
-        <ResultsTable columns={COLUMNS} rows={[]} />
-        <Text style={styles.helperText}>
-          Submit your first attempt in the Record tab to see results here.
+      <View style={styles.center}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchResults}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (results.length === 0) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.emptyTitle}>No results yet</Text>
+        <Text style={styles.emptyBody}>
+          Complete a drop test in the Record tab and save your attempt.
         </Text>
       </View>
     );
   }
 
   return (
-    <ScrollView
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onPullToRefresh} tintColor="#7F77DD" />
-      }
-    >
-      <Text style={styles.sectionTitle}>Your attempts</Text>
-      <ResultsTable columns={COLUMNS} rows={rows} />
-      <Text style={styles.helperText}>
-        Pull down to refresh.
-      </Text>
-    </ScrollView>
+    <View>
+      <Text style={styles.sectionTitle}>Saved attempts</Text>
+      {results.map((row) => (
+        <ResultCard key={row.id} row={row} />
+      ))}
+    </View>
   );
 }
 
-// STEM-111: Map a SQLite result row to the column strings the table expects.
-function formatRow(result, index, all) {
-  const { payload, synced } = result;
-  // STEM-111: Newest is last in DESC-sorted array, so attempt # counts down.
-  const attemptNumber = all.length - index;
+// STEM-112: Single saved result card — shows prediction, all 3 designs, and physics.
+function ResultCard({ row }) {
+  const { payload, createdAt, synced } = row;
+  const [expanded, setExpanded] = useState(false);
 
-  return [
-    `#${attemptNumber}`,
-    payload.fallTimeMs != null ? `${(payload.fallTimeMs / 1000).toFixed(2)} s` : '—',
-    payload.velocity != null ? `${payload.velocity.toFixed(2)} m/s` : '—',
-    payload.gForce != null ? `${payload.gForce.toFixed(2)} g` : '—',
-    synced ? '✓' : '⋯',
-  ];
+  // STEM-112: Handle both old single-attempt payloads and new multi-attempt (STEM-114).
+  const isMultiAttempt = Array.isArray(payload.attempts);
+  const attempts = isMultiAttempt ? payload.attempts : [payload];
+
+  return (
+    <View style={styles.card}>
+      {/* STEM-112: Card header — timestamp + sync badge */}
+      <View style={styles.cardHeader}>
+        <Text style={styles.cardTimestamp}>
+          {new Date(createdAt).toLocaleString()}
+        </Text>
+        <View style={[styles.syncBadge, synced ? styles.syncedBg : styles.pendingBg]}>
+          <Text style={[styles.syncBadgeText, synced ? styles.syncedText : styles.pendingText]}>
+            {synced ? '✓ Synced' : '⏳ Pending'}
+          </Text>
+        </View>
+      </View>
+
+      {/* STEM-112: Show prediction if this is a multi-attempt result (STEM-114). */}
+      {payload.prediction && (
+        <View style={styles.predictionRow}>
+          <Text style={styles.predictionLabel}>Prediction:</Text>
+          <Text style={styles.predictionValue}>{payload.prediction}</Text>
+        </View>
+      )}
+
+      {/* STEM-112: Summary table — one row per design */}
+      <View style={styles.tableContainer}>
+        <View style={styles.tableHeader}>
+          <Text style={[styles.tableHeaderCell, styles.designCol]}>Design</Text>
+          <Text style={[styles.tableHeaderCell, styles.numCol]}>Predicted</Text>
+          <Text style={[styles.tableHeaderCell, styles.numCol]}>Actual</Text>
+          <Text style={[styles.tableHeaderCell, styles.numCol]}>Velocity</Text>
+        </View>
+
+        {attempts.map((att, i) => (
+          <View key={i} style={styles.tableRow}>
+            <Text style={[styles.tableCell, styles.designCol]}>
+              {att.designName || `Attempt ${i + 1}`}
+            </Text>
+            <Text style={[styles.tableCell, styles.numCol]}>
+              {att.predictedTimeS != null ? `${att.predictedTimeS}s` : '—'}
+            </Text>
+            <Text style={[styles.tableCell, styles.numCol]}>
+              {att.fallTimeS != null
+                ? `${att.fallTimeS.toFixed(3)}s`
+                : att.fallTimeMs != null
+                  ? `${(att.fallTimeMs / 1000).toFixed(3)}s`
+                  : '—'}
+            </Text>
+            <Text style={[styles.tableCell, styles.numCol]}>
+              {att.velocity != null ? `${att.velocity.toFixed(2)} m/s` : '—'}
+            </Text>
+          </View>
+        ))}
+      </View>
+
+      {/* STEM-112: Expand to see full physics breakdown per design */}
+      <TouchableOpacity
+        onPress={() => setExpanded((v) => !v)}
+        style={styles.expandToggle}
+      >
+        <Text style={styles.expandToggleText}>
+          {expanded ? '▾ Hide physics detail' : '▸ Show physics detail'}
+        </Text>
+      </TouchableOpacity>
+
+      {expanded &&
+        attempts.map((att, i) => (
+          <View key={i} style={styles.detailBlock}>
+            <Text style={styles.detailHeading}>
+              {att.designName || `Attempt ${i + 1}`}
+            </Text>
+            <DetailRow label="Fall time" value={formatMs(att.fallTimeMs)} />
+            <DetailRow label="Drop height" value={formatUnit(att.dropHeightM, 'm')} />
+            <DetailRow label="Toy mass" value={formatUnit(att.toyMassKg, 'kg')} />
+            <DetailRow label="Velocity" value={formatUnit(att.velocity, 'm/s')} />
+            <DetailRow label="Acceleration" value={formatUnit(att.acceleration, 'm/s²')} />
+            <DetailRow label="Net force" value={formatUnit(att.netForce, 'N')} />
+            <DetailRow label="Weight" value={formatUnit(att.weight, 'N')} />
+            <DetailRow label="Drag force" value={formatUnit(att.dragForce, 'N')} />
+            <DetailRow label="G-force" value={formatUnit(att.gForce, 'g')} />
+          </View>
+        ))}
+    </View>
+  );
+}
+
+function DetailRow({ label, value }) {
+  return (
+    <View style={styles.detailRow}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.detailValue}>{value}</Text>
+    </View>
+  );
+}
+
+function formatMs(ms) {
+  if (ms == null) return '—';
+  return `${(ms / 1000).toFixed(3)} s`;
+}
+
+function formatUnit(value, unit) {
+  if (value == null || !Number.isFinite(value)) return '—';
+  return `${value.toFixed(2)} ${unit}`;
 }
 
 const styles = StyleSheet.create({
+  center: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  loadingText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 8,
+  },
+  errorText: {
+    fontSize: 13,
+    color: '#D85A30',
+    marginBottom: 12,
+  },
+  retryButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  retryButtonText: {
+    fontSize: 13,
+    color: '#374151',
+  },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#1A1A1A',
+    marginBottom: 6,
+  },
+  emptyBody: {
+    fontSize: 13,
+    color: '#6B7280',
+    textAlign: 'center',
+    paddingHorizontal: 24,
+  },
   sectionTitle: {
     fontSize: 12,
     fontWeight: '500',
     color: '#6B7280',
     marginTop: 12,
-    marginBottom: 6,
+    marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
-  helperText: {
+  // STEM-112: Result card styling.
+  card: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  cardTimestamp: {
     fontSize: 11,
     color: '#9CA3AF',
-    fontStyle: 'italic',
-    marginTop: 8,
+  },
+  syncBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  syncedBg: { backgroundColor: '#ECFDF5' },
+  pendingBg: { backgroundColor: '#FEF3C7' },
+  syncBadgeText: { fontSize: 10, fontWeight: '500' },
+  syncedText: { color: '#059669' },
+  pendingText: { color: '#D97706' },
+  // STEM-112: Prediction row.
+  predictionRow: {
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  predictionLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginRight: 6,
+  },
+  predictionValue: {
+    fontSize: 12,
+    color: '#1A1A1A',
+    fontWeight: '500',
+    flex: 1,
+  },
+  // STEM-112: Summary table.
+  tableContainer: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F4F6',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  tableHeaderCell: {
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#6B7280',
     textAlign: 'center',
   },
-  centered: {
-    paddingVertical: 32,
-    alignItems: 'center',
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  tableCell: {
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    fontSize: 11,
+    color: '#1A1A1A',
+    textAlign: 'center',
+    fontVariant: ['tabular-nums'],
+  },
+  designCol: { flex: 2, textAlign: 'left' },
+  numCol: { flex: 1 },
+  // STEM-112: Expand toggle for physics detail.
+  expandToggle: {
+    marginTop: 12,
+    paddingVertical: 6,
+  },
+  expandToggleText: {
+    fontSize: 12,
+    color: '#534AB7',
+    fontWeight: '500',
+  },
+  // STEM-112: Physics detail block.
+  detailBlock: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  detailHeading: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  detailLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  detailValue: {
+    fontSize: 12,
+    color: '#1A1A1A',
+    fontWeight: '500',
+    fontVariant: ['tabular-nums'],
   },
 });

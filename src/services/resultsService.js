@@ -1,21 +1,9 @@
-// src/services/resultsService.js
-// CRUD service for activity results.
-// Activity screens should NOT call this directly — they call resultSaveHelper
-// (STEM-108), which wraps this + Firestore upload.
+// STEM-112: CRUD service for activity results stored in SQLite.
+// Activity screens call resultSaveHelper (STEM-108), which wraps this + Firestore.
 
 import { getDb } from './sqliteDb';
 
-/**
- * Inserts a new result row.
- *
- * @param {Object} params
- * @param {string} params.activityId   e.g. "activity_1"
- * @param {string} params.teamId       team discriminator
- * @param {string} [params.userId]     Firebase Auth UID
- * @param {string} [params.teamName]   denormalised for leaderboard
- * @param {Object} params.payload      activity-specific data (will be JSON.stringify'd)
- * @returns {Promise<number>} the local row id of the inserted result
- */
+// STEM-112: Insert a new result row — called by resultSaveHelper after user taps "Save".
 export async function insertResult({
   activityId,
   teamId,
@@ -46,11 +34,7 @@ export async function insertResult({
   return result.lastInsertRowId;
 }
 
-/**
- * Marks a row as synced to Firestore.
- * @param {number} localId      row id from insertResult()
- * @param {string} firestoreId  the doc id returned by Firestore
- */
+// STEM-112: Flag a row as synced after successful Firestore upload.
 export async function markSynced(localId, firestoreId) {
   const db = await getDb();
   await db.runAsync(
@@ -59,10 +43,7 @@ export async function markSynced(localId, firestoreId) {
   );
 }
 
-/**
- * Returns rows pending upload — used by the background sync queue.
- * @param {number} [limit=50]
- */
+// STEM-112: Fetch rows that haven't been uploaded yet — used by background sync.
 export async function getPendingSync(limit = 50) {
   const db = await getDb();
   const rows = await db.getAllAsync(
@@ -72,13 +53,7 @@ export async function getPendingSync(limit = 50) {
   return rows.map(hydrate);
 }
 
-/**
- * Gets all results for a specific activity (e.g. for a results table display).
- * @param {string} activityId
- * @param {Object} [opts]
- * @param {string} [opts.teamId]  filter to one team
- * @param {number} [opts.limit=100]
- */
+// STEM-112: Load all results for a given activity — powers the Results tab.
 export async function getResultsByActivity(activityId, opts = {}) {
   const { teamId, limit = 100 } = opts;
   const db = await getDb();
@@ -97,9 +72,7 @@ export async function getResultsByActivity(activityId, opts = {}) {
   return rows.map(hydrate);
 }
 
-/**
- * Gets all results for a team across all activities.
- */
+// STEM-112: Load all results for a team across activities — used by leaderboard/profile.
 export async function getResultsByTeam(teamId, limit = 100) {
   const db = await getDb();
   const rows = await db.getAllAsync(
@@ -110,26 +83,19 @@ export async function getResultsByTeam(teamId, limit = 100) {
   return rows.map(hydrate);
 }
 
-/**
- * Clears all rows. Useful for "reset app" or end-of-class cleanup.
- * Be careful — this is destructive.
- */
+// STEM-112: Wipe all results — "reset app" or end-of-class cleanup.
 export async function clearAllResults() {
   const db = await getDb();
   await db.runAsync(`DELETE FROM results;`);
 }
 
-/**
- * Clears results for a single activity.
- */
+// STEM-112: Wipe results for one activity only.
 export async function clearResultsByActivity(activityId) {
   const db = await getDb();
   await db.runAsync(`DELETE FROM results WHERE activity_id = ?;`, [activityId]);
 }
 
-/**
- * Counts pending sync rows — useful for a "5 results not uploaded" badge.
- */
+// STEM-112: Count un-synced rows — powers "5 results pending upload" badge.
 export async function getPendingSyncCount() {
   const db = await getDb();
   const row = await db.getFirstAsync(
@@ -138,13 +104,7 @@ export async function getPendingSyncCount() {
   return row?.count ?? 0;
 }
 
-// ---- internal helpers ----
-
-/**
- * Converts a raw DB row into a friendly JS object:
- * - parses JSON payload
- * - converts synced int -> bool
- */
+// STEM-112: Convert raw DB row → JS object (parse JSON payload, synced int → bool).
 function hydrate(row) {
   let payload = {};
   try {
