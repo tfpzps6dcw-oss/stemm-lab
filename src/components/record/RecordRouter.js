@@ -3,10 +3,12 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Activity1Record from './Activity1Record';
+import Activity4Record from './Activity4Record';
 
 // STEM-111: Map activity ID → Record component. Add activities here as they're built.
 const RECORD_COMPONENTS = {
   1: Activity1Record,
+  4: Activity4Record,
 };
 
 export default function RecordRouter({ activity }) {
