@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { requestPermission } from './src/services/notificationService';
+import { startSyncQueue, stopSyncQueue } from './src/services/syncQueue';
 
 import LeaderboardScreen from './src/screens/LeaderboardScreen';
 import LoginScreen from './src/screens/LoginScreen';
@@ -27,6 +28,9 @@ export default function App() {
     // STEM-144: Ask for notification permission once when the app launches.
     requestPermission().catch(() => {/* ignore — permission errors are non-fatal */});
 
+    // STEM-112: Start background sync queue to retry failed Firestore uploads.
+    startSyncQueue();
+
     const unsubscribe = onAuthStateChanged(async (authUser) => {
       setUser(authUser);
 
@@ -42,7 +46,11 @@ export default function App() {
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      // STEM-112: Stop sync loop on unmount to avoid leaked intervals.
+      stopSyncQueue();
+      unsubscribe();
+    };
   }, []);
 
   if (loading) {
