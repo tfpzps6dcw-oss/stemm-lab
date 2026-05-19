@@ -5,11 +5,13 @@ import { View, Text, StyleSheet } from 'react-native';
 import Activity1Record from './Activity1Record';
 import Activity4Record from './Activity4Record';
 import Activity5Record from './Activity5Record';
+import Activity6Record from './Activity6Record';
 
 const RECORD_COMPONENTS = {
   1: Activity1Record,
   4: Activity4Record,
   5: Activity5Record,
+  6: Activity6Record,
 };
 
 export default function RecordRouter({ activity }) {

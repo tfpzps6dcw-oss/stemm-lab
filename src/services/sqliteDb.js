@@ -1,36 +1,32 @@
 // src/services/sqliteDb.js
 
-
+import { Platform } from 'react-native';
 import * as SQLite from 'expo-sqlite';
 
 const DB_NAME = 'stemm_lab.db';
-
-// Bumped when schema changes — used to run migrations
 const SCHEMA_VERSION = 1;
+const IS_WEB = Platform.OS === 'web';
 
 let dbInstance = null;
 
 /**
  * Opens (or returns the cached) database handle.
- * Safe to call repeatedly — only opens once.
+ * On web, returns a stub since expo-sqlite has no functioning web implementation.
  */
 export async function getDb() {
+  if (IS_WEB) {
+    return WEB_STUB;
+  }
   if (dbInstance) return dbInstance;
   dbInstance = await SQLite.openDatabaseAsync(DB_NAME);
   await initSchema(dbInstance);
   return dbInstance;
 }
 
-/**
- * Creates tables + indexes if they don't exist.
- * Handles simple migrations via user_version pragma.
- */
 async function initSchema(db) {
-  // Read current schema version
   const versionRow = await db.getFirstAsync('PRAGMA user_version;');
   const currentVersion = versionRow?.user_version ?? 0;
 
-  // Always enable foreign keys + WAL for better concurrent reads
   await db.execAsync('PRAGMA foreign_keys = ON;');
   await db.execAsync('PRAGMA journal_mode = WAL;');
 
@@ -56,17 +52,28 @@ async function initSchema(db) {
 
     await db.execAsync(`PRAGMA user_version = ${SCHEMA_VERSION};`);
   }
-
-  
 }
 
-/**
- * Closes the database. Call this on app teardown if needed.
- * In Expo apps you usually don't need to call this manually.
- */
 export async function closeDb() {
+  if (IS_WEB) return;
   if (dbInstance) {
     await dbInstance.closeAsync();
     dbInstance = null;
   }
 }
+
+// Web stub — returns sensible defaults so the app keeps working without local persistence
+const WEB_STUB = {
+  async runAsync() {
+    return { lastInsertRowId: Math.floor(Math.random() * 1e9), changes: 0 };
+  },
+  async getFirstAsync() {
+    return null;
+  },
+  async getAllAsync() {
+    return [];
+  },
+  async execAsync() {
+    return undefined;
+  },
+};
