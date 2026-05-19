@@ -7,12 +7,14 @@ import Activity1Results from './Activity1Results';
 import Activity4Results from './Activity4Results';
 import Activity5Results from './Activity5Results';
 import Activity6Results from './Activity6Results';
+import Activity7Results from './Activity7Results';
 
 const RESULTS_COMPONENTS = {
   1: Activity1Results,
   4: Activity4Results,
   5: Activity5Results,
   6: Activity6Results,
+  7: Activity7Results,
 };
 
 export default function ResultsRouter({ activity }) {
