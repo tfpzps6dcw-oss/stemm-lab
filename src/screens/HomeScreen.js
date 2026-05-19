@@ -43,9 +43,17 @@ export default function HomeScreen({ navigation, team, onResetTeam }) {
             {team.teamName} · {team.discriminator}
           </Text>
         </View>
-        <TouchableOpacity onPress={handleResetTeam} style={styles.resetButton}>
-          <Text style={styles.resetButtonText}>Reset</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Leaderboard')}
+            style={styles.resetButton}
+          >
+            <Text style={styles.resetButtonText}>Leaderboard</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleResetTeam} style={styles.resetButton}>
+            <Text style={styles.resetButtonText}>Reset</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
