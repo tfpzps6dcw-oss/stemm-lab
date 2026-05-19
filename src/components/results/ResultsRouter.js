@@ -4,10 +4,11 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import ResultsTable from '../ResultsTable';
 import Activity1Results from './Activity1Results';
+import Activity4Results from './Activity4Results';
 
-// STEM-111: Map activity ID → Results component. Add activities here as they're built.
 const RESULTS_COMPONENTS = {
   1: Activity1Results,
+  4: Activity4Results,
 };
 
 export default function ResultsRouter({ activity }) {
