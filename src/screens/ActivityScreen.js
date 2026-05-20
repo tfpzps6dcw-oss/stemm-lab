@@ -1,5 +1,7 @@
 // STEM-111: ResultsTab now dispatches via ResultsRouter (was hardcoded empty rows).
-
+// STEM-125: Tabs stay mounted (hidden via display:none) so in-progress Record data
+//   — typed inputs, captured photos, summary state — survives tab switches.
+ 
 import React, { useState } from 'react';
 import {
   View,
@@ -12,12 +14,12 @@ import { getActivityById, CATEGORY_COLORS } from '../constants/activities';
 import ActivityTabs, { ACTIVITY_TABS } from '../components/ActivityTabs';
 import RecordRouter from '../components/record/RecordRouter';
 import ResultsRouter from '../components/results/ResultsRouter';
-
+ 
 export default function ActivityScreen({ route, navigation }) {
   const { activityId } = route.params;
   const activity = getActivityById(activityId);
   const [activeTab, setActiveTab] = useState('info');
-
+ 
   if (!activity) {
     return (
       <View style={styles.center}>
@@ -25,9 +27,9 @@ export default function ActivityScreen({ route, navigation }) {
       </View>
     );
   }
-
+ 
   const colors = CATEGORY_COLORS[activity.category];
-
+ 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.headerRow}>
@@ -41,18 +43,28 @@ export default function ActivityScreen({ route, navigation }) {
         </View>
       </View>
       <Text style={styles.description}>{activity.description}</Text>
-
+ 
       <ActivityTabs
         tabs={ACTIVITY_TABS}
         activeTab={activeTab}
         onTabChange={setActiveTab}
       />
-
-      {activeTab === 'info' && <InstructionsTab activity={activity} />}
-      {activeTab === 'record' && <RecordRouter activity={activity} />}
-      {activeTab === 'results' && <ResultsRouter activity={activity} />}
-      {activeTab === 'reflect' && <ReflectTab activity={activity} />}
-
+ 
+      {/* STEM-125: All four tabs render at once; we toggle visibility with display.
+          Keeps each tab's local state (form inputs, photos, timers) intact across switches. */}
+      <View style={activeTab === 'info' ? styles.tabVisible : styles.tabHidden}>
+        <InstructionsTab activity={activity} />
+      </View>
+      <View style={activeTab === 'record' ? styles.tabVisible : styles.tabHidden}>
+        <RecordRouter activity={activity} />
+      </View>
+      <View style={activeTab === 'results' ? styles.tabVisible : styles.tabHidden}>
+        <ResultsRouter activity={activity} />
+      </View>
+      <View style={activeTab === 'reflect' ? styles.tabVisible : styles.tabHidden}>
+        <ReflectTab activity={activity} />
+      </View>
+ 
       <TouchableOpacity
         style={styles.backButton}
         onPress={() => navigation.goBack()}
@@ -62,13 +74,13 @@ export default function ActivityScreen({ route, navigation }) {
     </ScrollView>
   );
 }
-
+ 
 function InstructionsTab({ activity }) {
   return (
     <View>
       <Text style={styles.sectionTitle}>Overview</Text>
       <Text style={styles.paragraph}>{activity.overview}</Text>
-
+ 
       <Text style={styles.sectionTitle}>Equipment</Text>
       {activity.equipment.map((item, i) => (
         <View key={i} style={styles.bulletRow}>
@@ -76,7 +88,7 @@ function InstructionsTab({ activity }) {
           <Text style={styles.bulletText}>{item}</Text>
         </View>
       ))}
-
+ 
       <Text style={styles.sectionTitle}>Steps</Text>
       {activity.steps.map((step, i) => (
         <View key={i} style={styles.stepRow}>
@@ -87,7 +99,7 @@ function InstructionsTab({ activity }) {
     </View>
   );
 }
-
+ 
 function ReflectTab({ activity }) {
   return (
     <View style={styles.placeholderBox}>
@@ -99,7 +111,7 @@ function ReflectTab({ activity }) {
     </View>
   );
 }
-
+ 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFFFF' },
   content: { padding: 20, paddingTop: 24 },
@@ -115,6 +127,13 @@ const styles = StyleSheet.create({
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 4 },
   badgeText: { fontSize: 11, fontWeight: '500' },
   description: { fontSize: 12, color: '#6B7280', marginBottom: 16 },
+  // STEM-125: Show/hide wrappers — display:none keeps the React subtree mounted but invisible.
+  tabVisible: {
+    // Default flex layout when active.
+  },
+  tabHidden: {
+    display: 'none',
+  },
   sectionTitle: {
     fontSize: 12,
     fontWeight: '500',

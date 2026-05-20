@@ -1,24 +1,24 @@
-// STEM-121: Activity 2 Results tab — loads saved sound measurements from SQLite, displays summary + risk labels.
+// STEM-125: Activity 3 Results tab — loads saved fan designs from SQLite, displays photos + bend angles.
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
 } from 'react-native';
 import { getResultsByActivity } from '../../services/resultsService';
 import { loadTeam } from '../../services/teamStorage';
-import { processAmplitude } from '../../services/soundLevel';
 
-export default function Activity2Results({ activity }) {
+export default function Activity3Results({ activity }) {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // STEM-121: Fetch saved results from SQLite on mount and when tab is revisited.
+  // STEM-125: Fetch saved results from SQLite on mount and when tab is revisited.
   const fetchResults = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -29,7 +29,7 @@ export default function Activity2Results({ activity }) {
       });
       setResults(rows);
     } catch (err) {
-      console.error('Activity2Results: failed to load results', err);
+      console.error('Activity3Results: failed to load results', err);
       setError('Could not load results. Try again.');
     } finally {
       setLoading(false);
@@ -69,7 +69,7 @@ export default function Activity2Results({ activity }) {
       <View style={styles.center}>
         <Text style={styles.emptyTitle}>No results yet</Text>
         <Text style={styles.emptyBody}>
-          Measure 3 sounds in the Record tab and save your attempt.
+          Test 3 fan designs in the Record tab and save your attempt.
         </Text>
       </View>
     );
@@ -85,17 +85,16 @@ export default function Activity2Results({ activity }) {
   );
 }
 
-// STEM-121: Single saved result card — shows 3 sounds, peak dB, risk labels, loudest source.
+// STEM-125: Single saved result card — shows 3 designs with photos, distances, and bend angles.
 function ResultCard({ row }) {
   const { payload, createdAt, synced } = row;
   const [expanded, setExpanded] = useState(false);
 
-  // STEM-121: All payloads from Activity 2 are multi-attempt — but defend against odd cases.
   const attempts = Array.isArray(payload.attempts) ? payload.attempts : [];
 
   return (
     <View style={styles.card}>
-      {/* STEM-121: Card header — timestamp + sync badge */}
+      {/* STEM-125: Card header — timestamp + sync badge */}
       <View style={styles.cardHeader}>
         <Text style={styles.cardTimestamp}>
           {new Date(createdAt).toLocaleString()}
@@ -107,58 +106,53 @@ function ResultCard({ row }) {
         </View>
       </View>
 
-      {/* STEM-121: Summary table — one row per sound source. */}
+      {/* STEM-125: Summary table — one row per design */}
       <View style={styles.tableContainer}>
         <View style={styles.tableHeader}>
-          <Text style={[styles.tableHeaderCell, styles.sourceCol]}>Source</Text>
-          <Text style={[styles.tableHeaderCell, styles.numCol]}>Peak dB</Text>
-          <Text style={[styles.tableHeaderCell, styles.riskCol]}>Risk</Text>
+          <Text style={[styles.tableHeaderCell, styles.designCol]}>Design</Text>
+          <Text style={[styles.tableHeaderCell, styles.numCol]}>Dist</Text>
+          <Text style={[styles.tableHeaderCell, styles.numCol]}>Pred</Text>
+          <Text style={[styles.tableHeaderCell, styles.numCol]}>Actual</Text>
+          <Text style={[styles.tableHeaderCell, styles.checkCol]}>Right?</Text>
         </View>
 
-        {attempts.map((att, i) => {
-          // STEM-121: Re-derive the risk band from peakDb so colours stay consistent.
-          const risk =
-            att.peakDb != null
-              ? processAmplitude(amplitudeFromDb(att.peakDb)).risk
-              : null;
-
-          return (
-            <View key={i} style={styles.tableRow}>
-              <Text style={[styles.tableCell, styles.sourceCol]}>
-                {att.sourceName || `Sound ${i + 1}`}
-              </Text>
-              <Text style={[styles.tableCell, styles.numCol]}>
-                {att.peakDb != null ? att.peakDb.toFixed(0) : '—'}
-              </Text>
-              <View style={[styles.tableCell, styles.riskCol]}>
-                {risk ? (
-                  <Text style={[styles.riskText, { color: risk.color }]}>
-                    {risk.label}
-                  </Text>
-                ) : (
-                  <Text style={styles.dashText}>—</Text>
-                )}
-              </View>
+        {attempts.map((att, i) => (
+          <View key={i} style={styles.tableRow}>
+            <Text style={[styles.tableCell, styles.designCol]}>
+              {att.designName || `Design ${i + 1}`}
+            </Text>
+            <Text style={[styles.tableCell, styles.numCol]}>
+              {att.distanceCm != null ? `${att.distanceCm}cm` : '—'}
+            </Text>
+            <Text style={[styles.tableCell, styles.numCol]}>
+              {att.predictedAngle != null ? `${att.predictedAngle}°` : '—'}
+            </Text>
+            <Text style={[styles.tableCell, styles.numCol]}>
+              {att.actualAngle != null ? `${att.actualAngle}°` : '—'}
+            </Text>
+            <View style={[styles.tableCell, styles.checkCol]}>
+              {att.verdict === 'correct' && <Text style={styles.checkmark}>✓</Text>}
+              {att.verdict === 'incorrect' && <Text style={styles.cross}>✗</Text>}
+              {!att.verdict && <Text style={styles.dashText}>—</Text>}
             </View>
-          );
-        })}
+          </View>
+        ))}
       </View>
 
-      {/* STEM-121: Loudest source footer — mirrors what shows on the Record tab. */}
-      {payload.loudest && (
-        <View style={styles.loudestRow}>
-          <Text style={styles.loudestLabel}>Loudest sound:</Text>
-          <Text style={styles.loudestValue}>{payload.loudest}</Text>
+      {payload.mostBent && (
+        <View style={styles.mostBentRow}>
+          <Text style={styles.mostBentLabel}>Bent the most:</Text>
+          <Text style={styles.mostBentValue}>{payload.mostBent}</Text>
         </View>
       )}
 
-      {/* STEM-121: Expand to see predictions + average dB per sound. */}
+      {/* STEM-125: Expand to see photos + materials. */}
       <TouchableOpacity
         onPress={() => setExpanded((v) => !v)}
         style={styles.expandToggle}
       >
         <Text style={styles.expandToggleText}>
-          {expanded ? '▾ Hide detail' : '▸ Show detail'}
+          {expanded ? '▾ Hide photos' : '▸ Show photos'}
         </Text>
       </TouchableOpacity>
 
@@ -166,40 +160,22 @@ function ResultCard({ row }) {
         attempts.map((att, i) => (
           <View key={i} style={styles.detailBlock}>
             <Text style={styles.detailHeading}>
-              {att.sourceName || `Sound ${i + 1}`}
+              {att.designName || `Design ${i + 1}`}
             </Text>
-            <DetailRow
-              label="Peak dB"
-              value={att.peakDb != null ? `${att.peakDb.toFixed(1)} dB` : '—'}
-            />
-            <DetailRow
-              label="Average dB"
-              value={att.avgDb != null ? `${att.avgDb.toFixed(1)} dB` : '—'}
-            />
-            <DetailRow label="Risk level" value={att.riskLabel || '—'} />
-            {i > 0 && (
-              <DetailRow label="Prediction" value={att.prediction || '—'} />
+            <Text style={styles.detailMeta}>
+              {att.material} · {att.distanceCm}cm · {att.actualAngle}°
+            </Text>
+            {att.photoUri ? (
+              <Image source={{ uri: att.photoUri }} style={styles.photoThumb} />
+            ) : (
+              <View style={styles.photoMissing}>
+                <Text style={styles.photoMissingText}>No photo</Text>
+              </View>
             )}
           </View>
         ))}
     </View>
   );
-}
-
-function DetailRow({ label, value }) {
-  return (
-    <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue}>{value}</Text>
-    </View>
-  );
-}
-
-// STEM-121: Reverse-map dB → dBFS to re-derive risk colour from a saved peakDb.
-//   Matches the calibration in soundLevel.js (DBFS_MIN=-60, DBFS_MAX=0, DB_MIN=30, DB_MAX=110).
-function amplitudeFromDb(db) {
-  const t = (db - 30) / (110 - 30);
-  return t * 60 - 60;
 }
 
 const styles = StyleSheet.create({
@@ -249,7 +225,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
-  // STEM-121: Result card styling — matches Activity1Results.
   card: {
     backgroundColor: '#F9FAFB',
     borderRadius: 8,
@@ -278,7 +253,6 @@ const styles = StyleSheet.create({
   syncBadgeText: { fontSize: 10, fontWeight: '500' },
   syncedText: { color: '#059669' },
   pendingText: { color: '#D97706' },
-  // STEM-121: Summary table — same shape as Activity1Results.
   tableContainer: {
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -293,7 +267,7 @@ const styles = StyleSheet.create({
   },
   tableHeaderCell: {
     paddingVertical: 8,
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
     fontSize: 10,
     fontWeight: '600',
     color: '#6B7280',
@@ -306,44 +280,36 @@ const styles = StyleSheet.create({
   },
   tableCell: {
     paddingVertical: 8,
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
     fontSize: 11,
     color: '#1A1A1A',
     textAlign: 'center',
     fontVariant: ['tabular-nums'],
   },
-  sourceCol: { flex: 2, textAlign: 'left' },
+  designCol: { flex: 2, textAlign: 'left' },
   numCol: { flex: 1 },
-  riskCol: { flex: 1.3, justifyContent: 'center', alignItems: 'center' },
-  riskText: {
-    fontSize: 10,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  dashText: {
-    fontSize: 12,
-    color: '#D1D5DB',
-  },
-  // STEM-121: Loudest source footer.
-  loudestRow: {
+  checkCol: { flex: 0.8, justifyContent: 'center', alignItems: 'center' },
+  checkmark: { fontSize: 14, color: '#059669', fontWeight: '600' },
+  cross: { fontSize: 14, color: '#D85A30', fontWeight: '600' },
+  dashText: { fontSize: 12, color: '#D1D5DB' },
+  mostBentRow: {
     flexDirection: 'row',
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
   },
-  loudestLabel: {
+  mostBentLabel: {
     fontSize: 12,
     color: '#6B7280',
     marginRight: 6,
   },
-  loudestValue: {
+  mostBentValue: {
     fontSize: 12,
     color: '#1A1A1A',
     fontWeight: '600',
     flex: 1,
   },
-  // STEM-121: Expand toggle.
   expandToggle: {
     marginTop: 12,
     paddingVertical: 6,
@@ -353,7 +319,6 @@ const styles = StyleSheet.create({
     color: '#534AB7',
     fontWeight: '500',
   },
-  // STEM-121: Detail block.
   detailBlock: {
     marginTop: 12,
     paddingTop: 12,
@@ -364,21 +329,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#374151',
+    marginBottom: 4,
+  },
+  detailMeta: {
+    fontSize: 11,
+    color: '#9CA3AF',
     marginBottom: 8,
+    textTransform: 'capitalize',
   },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
+  photoThumb: {
+    width: '100%',
+    height: 180,
+    borderRadius: 6,
+    backgroundColor: '#E5E7EB',
   },
-  detailLabel: {
+  photoMissing: {
+    height: 80,
+    borderRadius: 6,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoMissingText: {
     fontSize: 12,
-    color: '#6B7280',
-  },
-  detailValue: {
-    fontSize: 12,
-    color: '#1A1A1A',
-    fontWeight: '500',
-    fontVariant: ['tabular-nums'],
+    color: '#9CA3AF',
+    fontStyle: 'italic',
   },
 });
