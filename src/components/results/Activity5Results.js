@@ -1,7 +1,9 @@
 // STEM-133: Activity 5 (Stretch) Results tab — reads saved attempts from SQLite.
+// STEM-125: Added useFocusEffect so results refresh when tab becomes visible (Option B fix).
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import ResultsTable from '../ResultsTable';
 import { getResultsByActivity } from '../../services/resultsService';
 
@@ -23,9 +25,13 @@ export default function Activity5Results({ activity }) {
     }
   }, [activity.id]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // STEM-125: useFocusEffect re-fetches every time this tab becomes visible — needed because
+  //   Option B keeps all tabs mounted (display:none), so useEffect only fires once on mount.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   const columns = ['Motion', 'Score', 'Duration', 'Date'];
 
@@ -44,17 +50,13 @@ export default function Activity5Results({ activity }) {
           <Text style={styles.refreshText}>{loading ? 'Loading…' : 'Refresh'}</Text>
         </TouchableOpacity>
       </View>
-
       <ResultsTable columns={columns} rows={tableRows} />
-
       {error && <Text style={styles.errorText}>{error}</Text>}
-
       {!loading && rows.length === 0 && !error && (
         <Text style={styles.helperText}>
           No attempts yet. Record your first motion in the Record tab.
         </Text>
       )}
-
       {rows.length > 0 && (
         <Text style={styles.helperText}>
           Higher score = smoother motion. Aim for 100 by moving slowly and evenly.
@@ -89,10 +91,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
-  refreshText: {
-    fontSize: 12,
-    color: '#534AB7',
-  },
+  refreshText: { fontSize: 12, color: '#534AB7' },
   helperText: {
     fontSize: 11,
     color: '#9CA3AF',
@@ -100,9 +99,5 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
   },
-  errorText: {
-    color: '#D85A30',
-    fontSize: 13,
-    marginTop: 12,
-  },
+  errorText: { color: '#D85A30', fontSize: 13, marginTop: 12 },
 });
