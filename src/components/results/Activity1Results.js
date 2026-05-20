@@ -1,6 +1,7 @@
 // STEM-112: Activity 1 Results tab — loads saved attempts from SQLite, displays summary + physics.
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -34,9 +35,13 @@ export default function Activity1Results({ activity }) {
     }
   }, [activity.id]);
 
-  useEffect(() => {
-    fetchResults();
-  }, [fetchResults]);
+  // STEM-125: useFocusEffect re-fetches every time this tab becomes visible — needed because
+  //   Option B keeps all tabs mounted (display:none), so useEffect only fires once on mount.
+  useFocusEffect(
+    useCallback(() => {
+      fetchResults();
+    }, [fetchResults])
+  );
 
   if (loading) {
     return (
