@@ -1,7 +1,9 @@
 // STEM-137: Activity 6 (Reaction) Results tab — reads saved attempts from SQLite.
+// STEM-125: Added useFocusEffect so results refresh when tab becomes visible (Option B fix).
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import ResultsTable from '../ResultsTable';
 import { getResultsByActivity } from '../../services/resultsService';
 
@@ -23,9 +25,13 @@ export default function Activity6Results({ activity }) {
     }
   }, [activity.id]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // STEM-125: useFocusEffect re-fetches every time this tab becomes visible — needed because
+  //   Option B keeps all tabs mounted (display:none), so useEffect only fires once on mount.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   const columns = ['Tap (ms)', 'Trace %', 'Delay (ms)', 'Date'];
 
@@ -44,17 +50,13 @@ export default function Activity6Results({ activity }) {
           <Text style={styles.refreshText}>{loading ? 'Loading…' : 'Refresh'}</Text>
         </TouchableOpacity>
       </View>
-
       <ResultsTable columns={columns} rows={tableRows} />
-
       {error && <Text style={styles.errorText}>{error}</Text>}
-
       {!loading && rows.length === 0 && !error && (
         <Text style={styles.helperText}>
           No attempts yet. Record in the Record tab.
         </Text>
       )}
-
       {rows.length > 0 && (
         <Text style={styles.helperText}>
           Lower tap time and higher trace % = better reaction control.

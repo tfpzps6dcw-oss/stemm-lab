@@ -1,18 +1,27 @@
 // STEM-111: Dispatcher for activity-specific Record tabs — keeps each activity isolated.
 // STEM-120: Registered Activity 2 (Sound Pollution Hunter).
 // STEM-125: Registered Activity 3 (Hand Fan Challenge).
+// STEM-125: Registered Activities 4-7 (partner's components — missing from Sprint 2 merge).
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Activity1Record from './Activity1Record';
 import Activity2Record from './Activity2Record';
 import Activity3Record from './Activity3Record';
+import Activity4Record from './Activity4Record';
+import Activity5Record from './Activity5Record';
+import Activity6Record from './Activity6Record';
+import Activity7Record from './Activity7Record';
 
 // STEM-111: Map activity ID → Record component. Add activities here as they're built.
 const RECORD_COMPONENTS = {
   1: Activity1Record,
   2: Activity2Record, // STEM-120
   3: Activity3Record, // STEM-125
+  4: Activity4Record, // STEM-128
+  5: Activity5Record, // STEM-132
+  6: Activity6Record, // STEM-135
+  7: Activity7Record, // STEM-141
 };
 
 export default function RecordRouter({ activity }) {
