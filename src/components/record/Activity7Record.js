@@ -1,11 +1,12 @@
 // STEM-140: Activity 7 (Breathing pace) Record tab — at rest vs after exercise.
+// STEM-145: Added video recording + slow-mo playback for capturing breathing pattern evidence.
 //
 // Two-phase test:
 //   1. Lie flat, phone on chest. Record breathing at rest for 30s.
 //   2. Do 20 jumping jacks. Repeat the 30s recording.
 //   3. Compare the two BPM values.
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,6 +16,10 @@ import {
 import { startSampling, isAccelerometerAvailable } from '../../services/accelerometerService';
 import { calculateBreathingRate } from '../../services/breathingRate';
 import { saveResult } from '../../services/resultSaveHelper';
+// STEM-145: Video recording and slow-mo playback for capturing breathing pattern evidence.
+import VideoRecorder from '../VideoRecorder';
+import VideoPlayer from '../VideoPlayer';
+import { deleteVideo } from '../../services/videoService';
 
 const SAMPLE_INTERVAL_MS = 100; // 10 Hz — breathing is slow
 const DEFAULT_DURATION_SEC = 30;
@@ -31,6 +36,7 @@ export default function Activity7Record({ activity }) {
   const [activeResult, setActiveResult] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [videoUri, setVideoUri] = useState(null); // STEM-145: recorded video for breathing test
 
   const sessionRef = useRef(null);
   const countdownRef = useRef(null);
@@ -42,6 +48,14 @@ export default function Activity7Record({ activity }) {
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
   }, []);
+
+  // STEM-145: Save recorded video URI, delete any previous video.
+  const handleVideoSaved = useCallback(async (uri) => {
+    if (videoUri) {
+      await deleteVideo(videoUri);
+    }
+    setVideoUri(uri);
+  }, [videoUri]);
 
   async function startRecording(which) {
     // which = 'rest' or 'active'
@@ -93,7 +107,6 @@ export default function Activity7Record({ activity }) {
       clearInterval(countdownRef.current);
       countdownRef.current = null;
     }
-    // Reset to whichever phase makes sense
     if (phase === 'recording-rest') setPhase('intro');
     else if (phase === 'recording-active') setPhase('between');
   }
@@ -108,6 +121,7 @@ export default function Activity7Record({ activity }) {
     setRestResult(null);
     setActiveResult(null);
     setError(null);
+    setVideoUri(null); // STEM-145: Clear video on reset
   }
 
   async function handleSave() {
@@ -124,6 +138,7 @@ export default function Activity7Record({ activity }) {
           durationSec,
           restConfidence: restResult.confidence,
           activeConfidence: activeResult.confidence,
+          videoUri,  // STEM-145: path to recorded breathing test video
         },
       });
       resetAll();
@@ -171,6 +186,25 @@ export default function Activity7Record({ activity }) {
           <Text style={styles.introItem}>2. Do 20 jumping jacks (or similar), then repeat the recording.</Text>
           <Text style={styles.introItem}>3. Compare the two BPM values and save.</Text>
         </View>
+
+        {/* STEM-145: Video recorder — have a teammate film the breathing test. */}
+        <Text style={styles.sectionTitle}>Record the test</Text>
+        <VideoRecorder
+          activityPrefix="breathing"
+          onVideoSaved={handleVideoSaved}
+          style={{ marginBottom: 12 }}
+        />
+
+        {/* STEM-145: Slow-mo playback — review chest movement patterns. */}
+        {videoUri && (
+          <>
+            <Text style={styles.sectionTitle}>Review recording</Text>
+            <VideoPlayer
+              uri={videoUri}
+              style={{ marginBottom: 12 }}
+            />
+          </>
+        )}
 
         <Text style={styles.sectionTitle}>Recording duration</Text>
         <View style={styles.durationRow}>
@@ -265,6 +299,18 @@ export default function Activity7Record({ activity }) {
           <Text style={styles.deltaLabel}>Difference</Text>
           <Text style={styles.deltaValue}>{delta > 0 ? `+${delta}` : delta} bpm</Text>
         </View>
+
+        {/* STEM-145: Show video playback on final review if recorded. */}
+        {videoUri && (
+          <>
+            <Text style={styles.sectionTitle}>Your recording</Text>
+            <VideoPlayer
+              uri={videoUri}
+              style={{ marginBottom: 12 }}
+            />
+          </>
+        )}
+
         <TouchableOpacity
           style={[styles.primaryButton, saving && styles.buttonDisabled]}
           onPress={handleSave}
