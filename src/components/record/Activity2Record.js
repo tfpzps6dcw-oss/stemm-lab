@@ -1,4 +1,5 @@
 // STEM-117, STEM-120, STEM-121: Activity 2 Record tab — live dB sampling, 3 sound source attempts, save to data layer.
+// STEM-145: Added video recording + slow-mo playback per attempt for capturing sound source evidence.
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
@@ -18,6 +19,10 @@ import {
 } from '../../services/audioService';
 import { processAmplitude } from '../../services/soundLevel';
 import { saveResult } from '../../services/resultSaveHelper';
+// STEM-145: Video recording and slow-mo playback for capturing sound source evidence.
+import VideoRecorder from '../VideoRecorder';
+import VideoPlayer from '../VideoPlayer';
+import { deleteVideo } from '../../services/videoService';
 
 // STEM-120: 3 sound source attempts (e.g. dropping book, talking, stamping feet).
 const ATTEMPT_LABELS = ['Sound 1', 'Sound 2', 'Sound 3'];
@@ -26,6 +31,7 @@ const INITIAL_ATTEMPT = {
   prediction: '',       // 'louder' | 'softer' | ''  (vs previous sound)
   peakDb: null,         // captured peak during sampling
   avgDb: null,          // captured average during sampling
+  videoUri: null,       // STEM-145: recorded video URI for this attempt
 };
 
 export default function Activity2Record({ activity }) {
@@ -70,6 +76,19 @@ export default function Activity2Record({ activity }) {
   useEffect(() => {
     getMicrophonePermissionStatus().then(setHasPermission);
   }, []);
+
+  // STEM-145: Save recorded video URI to the current attempt, delete any previous video for this attempt.
+  const handleVideoSaved = useCallback(async (uri) => {
+    const oldUri = attempts[currentAttemptIdx].videoUri;
+    if (oldUri) {
+      await deleteVideo(oldUri);
+    }
+    setAttempts((prev) =>
+      prev.map((att, i) =>
+        i === currentAttemptIdx ? { ...att, videoUri: uri } : att
+      )
+    );
+  }, [currentAttemptIdx, attempts]);
 
   const updateAttemptInput = (key) => (value) => {
     setAttempts((prev) =>
@@ -151,6 +170,7 @@ export default function Activity2Record({ activity }) {
           prediction: att.prediction,
           peakDb: att.peakDb,
           avgDb: att.avgDb,
+          videoUri: att.videoUri,  // STEM-145: path to recorded sound source video
           riskLabel:
             att.peakDb !== null
               ? processAmplitude(amplitudeFromDb(att.peakDb)).risk.label
@@ -257,6 +277,25 @@ export default function Activity2Record({ activity }) {
           </>
         )}
 
+        {/* STEM-145: Video recorder — students film each sound source being produced. */}
+        <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Record the sound source</Text>
+        <VideoRecorder
+          activityPrefix={`sound_s${currentAttemptIdx + 1}`}
+          onVideoSaved={handleVideoSaved}
+          style={{ marginBottom: 12 }}
+        />
+
+        {/* STEM-145: Slow-mo playback — review the sound source video. */}
+        {currentAttempt.videoUri && (
+          <>
+            <Text style={[styles.sectionTitle, { marginTop: 12 }]}>Review recording</Text>
+            <VideoPlayer
+              uri={currentAttempt.videoUri}
+              style={{ marginBottom: 12 }}
+            />
+          </>
+        )}
+
         {/* STEM-119: Live dB readout. Big number, colour-coded risk band. */}
         <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Live reading</Text>
         <View style={styles.liveDisplay}>
@@ -266,7 +305,7 @@ export default function Activity2Record({ activity }) {
               liveRisk && { color: liveRisk.color },
             ]}
           >
-            {liveDb !== null ? `${liveDb.toFixed(0)}` : '—'}
+            {liveDb !== null ? `${liveDb.toFixed(0)}` : '–'}
             <Text style={styles.liveDbUnit}> dB</Text>
           </Text>
           {liveRisk && (
@@ -302,7 +341,7 @@ export default function Activity2Record({ activity }) {
             <ResultRow label="Peak dB" value={`${currentAttempt.peakDb.toFixed(1)} dB`} />
             <ResultRow
               label="Average dB"
-              value={currentAttempt.avgDb !== null ? `${currentAttempt.avgDb.toFixed(1)} dB` : '—'}
+              value={currentAttempt.avgDb !== null ? `${currentAttempt.avgDb.toFixed(1)} dB` : '–'}
             />
           </View>
         )}
@@ -357,10 +396,10 @@ function SummaryTable({ attempts }) {
         return (
           <View key={i} style={styles.tableRow}>
             <Text style={[styles.tableCell, styles.sourceCol]}>
-              {att.sourceName || '—'}
+              {att.sourceName || '–'}
             </Text>
             <Text style={[styles.tableCell, styles.dbCol]}>
-              {att.peakDb !== null ? att.peakDb.toFixed(0) : '—'}
+              {att.peakDb !== null ? att.peakDb.toFixed(0) : '–'}
             </Text>
             <View style={[styles.tableCell, styles.riskCol]}>
               {riskLabel ? (
@@ -368,7 +407,7 @@ function SummaryTable({ attempts }) {
                   {riskLabel.label}
                 </Text>
               ) : (
-                <Text style={styles.verdictDash}>—</Text>
+                <Text style={styles.verdictDash}>–</Text>
               )}
             </View>
           </View>
@@ -380,7 +419,7 @@ function SummaryTable({ attempts }) {
           <Text style={styles.tableFooterLabel}>
             Loudest sound:{' '}
             <Text style={styles.tableFooterValue}>
-              {getLoudestSource(attempts) || '—'}
+              {getLoudestSource(attempts) || '–'}
             </Text>
           </Text>
         </View>

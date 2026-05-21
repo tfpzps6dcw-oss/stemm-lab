@@ -1,10 +1,15 @@
 // STEM-135/136/137: Activity 6 (Reaction) — multi-phase Record tab.
+// STEM-145: Added video recording + slow-mo playback for capturing reaction test evidence.
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { saveResult } from '../../services/resultSaveHelper';
 import TapPhase from './activity6/TapPhase';
 import TracePhase from './activity6/TracePhase';
+// STEM-145: Video recording and slow-mo playback for capturing reaction test evidence.
+import VideoRecorder from '../VideoRecorder';
+import VideoPlayer from '../VideoPlayer';
+import { deleteVideo } from '../../services/videoService';
 
 export default function Activity6Record({ activity }) {
   const [phase, setPhase] = useState('intro');
@@ -12,12 +17,22 @@ export default function Activity6Record({ activity }) {
   const [traceResult, setTraceResult] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [videoUri, setVideoUri] = useState(null); // STEM-145: recorded video for this test
+
+  // STEM-145: Save recorded video URI, delete any previous video.
+  const handleVideoSaved = useCallback(async (uri) => {
+    if (videoUri) {
+      await deleteVideo(videoUri);
+    }
+    setVideoUri(uri);
+  }, [videoUri]);
 
   function resetAll() {
     setPhase('intro');
     setTapResult(null);
     setTraceResult(null);
     setError(null);
+    setVideoUri(null); // STEM-145: Clear video on reset
   }
 
   async function handleSave() {
@@ -32,6 +47,7 @@ export default function Activity6Record({ activity }) {
             tapFalseStarts: tapResult.falseStarts,
             traceAccuracyPct: traceResult.accuracyPct,
             traceMeanDelayMs: traceResult.meanDelayMs,
+            videoUri,  // STEM-145: path to recorded reaction test video
         },
       });
     resetAll();
@@ -52,6 +68,26 @@ export default function Activity6Record({ activity }) {
           <Text style={styles.introItem}>2. Trace a moving shape with your finger.</Text>
           <Text style={styles.introItem}>3. Review and save your result.</Text>
         </View>
+
+        {/* STEM-145: Video recorder — have a teammate film the reaction tests. */}
+        <Text style={styles.sectionTitle}>Record the tests</Text>
+        <VideoRecorder
+          activityPrefix="reaction"
+          onVideoSaved={handleVideoSaved}
+          style={{ marginBottom: 12 }}
+        />
+
+        {/* STEM-145: Slow-mo playback — review reaction speed evidence. */}
+        {videoUri && (
+          <>
+            <Text style={styles.sectionTitle}>Review recording</Text>
+            <VideoPlayer
+              uri={videoUri}
+              style={{ marginBottom: 12 }}
+            />
+          </>
+        )}
+
         <TouchableOpacity style={styles.primaryButton} onPress={() => setPhase('tap')}>
           <Text style={styles.primaryButtonText}>Start tests</Text>
         </TouchableOpacity>
@@ -105,6 +141,17 @@ export default function Activity6Record({ activity }) {
           Mean delay: {traceResult.meanDelayMs} ms
         </Text>
       </View>
+
+      {/* STEM-145: Show video playback on review screen if recorded. */}
+      {videoUri && (
+        <>
+          <Text style={styles.sectionTitle}>Your recording</Text>
+          <VideoPlayer
+            uri={videoUri}
+            style={{ marginBottom: 12 }}
+          />
+        </>
+      )}
 
       <TouchableOpacity
         style={[styles.primaryButton, saving && styles.buttonDisabled]}

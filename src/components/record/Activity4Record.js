@@ -1,6 +1,7 @@
 // STEM-128: Activity 4 (Earthquake) Record tab — live vibration + design comparison.
+// STEM-145: Added video recording + slow-mo playback for capturing structure vibration evidence.
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,6 +12,10 @@ import {
 } from 'react-native';
 import { startSampling, isAccelerometerAvailable } from '../../services/accelerometerService';
 import { saveResult } from '../../services/resultSaveHelper';
+// STEM-145: Video recording and slow-mo playback for capturing earthquake test evidence.
+import VideoRecorder from '../VideoRecorder';
+import VideoPlayer from '../VideoPlayer';
+import { deleteVideo } from '../../services/videoService';
 
 const SAMPLE_INTERVAL_MS = 50;   // 20 Hz — plenty for vibration peaks
 const RECORD_DURATION_MS = 3000; // 3-second drop window
@@ -23,6 +28,7 @@ export default function Activity4Record({ activity }) {
   const [peakG, setPeakG] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [videoUri, setVideoUri] = useState(null); // STEM-145: recorded video for this design
 
   const sessionRef = useRef(null);
   const recordTimerRef = useRef(null);
@@ -37,6 +43,14 @@ export default function Activity4Record({ activity }) {
       if (recordTimerRef.current) clearTimeout(recordTimerRef.current);
     };
   }, []);
+
+  // STEM-145: Save recorded video URI, delete any previous video for this design.
+  const handleVideoSaved = useCallback(async (uri) => {
+    if (videoUri) {
+      await deleteVideo(videoUri);
+    }
+    setVideoUri(uri);
+  }, [videoUri]);
 
   async function arm() {
     setError(null);
@@ -95,10 +109,12 @@ export default function Activity4Record({ activity }) {
         payload: {
           design: design.trim(),
           peakG: Number(peakG.toFixed(3)),
+          videoUri,  // STEM-145: path to recorded earthquake test video
         },
       });
       Alert.alert('Saved', 'Result recorded. Try a new design to compare.');
       setDesign('');
+      setVideoUri(null); // STEM-145: Clear video for next design
       reset();
     } catch (err) {
       setError(err.message || 'Failed to save result.');
@@ -142,11 +158,30 @@ export default function Activity4Record({ activity }) {
         editable={phase === 'idle' || phase === 'done'}
       />
 
+      {/* STEM-145: Video recorder — students film the earthquake structure test. */}
+      <Text style={styles.sectionTitle}>Record the test</Text>
+      <VideoRecorder
+        activityPrefix="earthquake"
+        onVideoSaved={handleVideoSaved}
+        style={{ marginBottom: 12 }}
+      />
+
+      {/* STEM-145: Slow-mo playback — review structure movement during vibration. */}
+      {videoUri && (
+        <>
+          <Text style={styles.sectionTitle}>Review (slow-mo)</Text>
+          <VideoPlayer
+            uri={videoUri}
+            style={{ marginBottom: 12 }}
+          />
+        </>
+      )}
+
       {/* Live vibration readout */}
       <Text style={styles.sectionTitle}>Live vibration</Text>
       <View style={styles.readoutBox}>
         <Text style={styles.readoutValue}>
-          {phase === 'idle' ? '—' : liveMagnitude.toFixed(2)}
+          {phase === 'idle' ? '–' : liveMagnitude.toFixed(2)}
         </Text>
         <Text style={styles.readoutUnit}>g (net)</Text>
       </View>
