@@ -1,6 +1,7 @@
 // STEM-111: ResultsTab now dispatches via ResultsRouter (was hardcoded empty rows).
 // STEM-125: Tabs stay mounted (hidden via display:none) so in-progress Record data
 //   — typed inputs, captured photos, summary state — survives tab switches.
+// STEM-147: Added BatteryIndicator in header and AdBanner at bottom of screen.
 
 import React, { useState } from 'react';
 import {
@@ -14,6 +15,9 @@ import { getActivityById, CATEGORY_COLORS } from '../constants/activities';
 import ActivityTabs, { ACTIVITY_TABS } from '../components/ActivityTabs';
 import RecordRouter from '../components/record/RecordRouter';
 import ResultsRouter from '../components/results/ResultsRouter';
+// STEM-147: Battery monitoring and AdMob banner.
+import BatteryIndicator from '../components/BatteryIndicator';
+import AdBanner from '../components/AdBanner';
 
 export default function ActivityScreen({ route, navigation }) {
   const { activityId } = route.params;
@@ -31,47 +35,57 @@ export default function ActivityScreen({ route, navigation }) {
   const colors = CATEGORY_COLORS[activity.category];
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.headerRow}>
-        <Text style={styles.title}>
-          {activity.id}. {activity.title}
-        </Text>
-        <View style={[styles.badge, { backgroundColor: colors.badgeBg }]}>
-          <Text style={[styles.badgeText, { color: colors.badgeText }]}>
-            {activity.subject}
-          </Text>
+    <View style={styles.screenWrapper}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        {/* STEM-147: Battery indicator + activity header on the same row. */}
+        <View style={styles.topRow}>
+          <BatteryIndicator />
         </View>
-      </View>
-      <Text style={styles.description}>{activity.description}</Text>
 
-      <ActivityTabs
-        tabs={ACTIVITY_TABS}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      />
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>
+            {activity.id}. {activity.title}
+          </Text>
+          <View style={[styles.badge, { backgroundColor: colors.badgeBg }]}>
+            <Text style={[styles.badgeText, { color: colors.badgeText }]}>
+              {activity.subject}
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.description}>{activity.description}</Text>
 
-      {/* STEM-125: All four tabs render at once; we toggle visibility with display.
-          Keeps each tab's local state (form inputs, photos, timers) intact across switches. */}
-      <View style={activeTab === 'info' ? styles.tabVisible : styles.tabHidden}>
-        <InstructionsTab activity={activity} />
-      </View>
-      <View style={activeTab === 'record' ? styles.tabVisible : styles.tabHidden}>
-        <RecordRouter activity={activity} />
-      </View>
-      <View style={activeTab === 'results' ? styles.tabVisible : styles.tabHidden}>
-        <ResultsRouter activity={activity} isVisible={activeTab === 'results'} />
-      </View>
-      <View style={activeTab === 'reflect' ? styles.tabVisible : styles.tabHidden}>
-        <ReflectTab activity={activity} />
-      </View>
+        <ActivityTabs
+          tabs={ACTIVITY_TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
 
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => navigation.goBack()}
-      >
-        <Text style={styles.backButtonText}>← Back to activities</Text>
-      </TouchableOpacity>
-    </ScrollView>
+        {/* STEM-125: All four tabs render at once; we toggle visibility with display.
+            Keeps each tab's local state (form inputs, photos, timers) intact across switches. */}
+        <View style={activeTab === 'info' ? styles.tabVisible : styles.tabHidden}>
+          <InstructionsTab activity={activity} />
+        </View>
+        <View style={activeTab === 'record' ? styles.tabVisible : styles.tabHidden}>
+          <RecordRouter activity={activity} />
+        </View>
+        <View style={activeTab === 'results' ? styles.tabVisible : styles.tabHidden}>
+          <ResultsRouter activity={activity} isVisible={activeTab === 'results'} />
+        </View>
+        <View style={activeTab === 'reflect' ? styles.tabVisible : styles.tabHidden}>
+          <ReflectTab activity={activity} />
+        </View>
+
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.backButtonText}>← Back to activities</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* STEM-147: AdMob banner fixed at the bottom of the screen. */}
+      <AdBanner />
+    </View>
   );
 }
 
@@ -113,10 +127,21 @@ function ReflectTab({ activity }) {
 }
 
 const styles = StyleSheet.create({
+  // STEM-147: Wrapper so AdBanner sits at the bottom outside the ScrollView.
+  screenWrapper: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
   container: { flex: 1, backgroundColor: '#FFFFFF' },
   content: { padding: 20, paddingTop: 24 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   error: { fontSize: 14, color: '#6B7280' },
+  // STEM-147: Top row for battery indicator.
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 8,
+  },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
