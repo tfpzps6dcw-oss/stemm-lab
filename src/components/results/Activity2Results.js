@@ -1,7 +1,7 @@
 // STEM-121: Activity 2 Results tab — loads saved sound measurements from SQLite, displays summary + risk labels.
+// STEM-145-fix: Replaced useFocusEffect with useEffect watching isVisible prop.
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -13,12 +13,11 @@ import { getResultsByActivity } from '../../services/resultsService';
 import { loadTeam } from '../../services/teamStorage';
 import { processAmplitude } from '../../services/soundLevel';
 
-export default function Activity2Results({ activity }) {
+export default function Activity2Results({ activity, isVisible }) {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // STEM-121: Fetch saved results from SQLite on mount and when tab is revisited.
   const fetchResults = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -36,13 +35,12 @@ export default function Activity2Results({ activity }) {
     }
   }, [activity.id]);
 
-  // STEM-125: useFocusEffect re-fetches every time this tab becomes visible — needed because
-  //   Option B keeps all tabs mounted (display:none), so useEffect only fires once on mount.
-  useFocusEffect(
-    useCallback(() => {
+  // STEM-145-fix: Re-fetch results every time the Results tab becomes visible.
+  useEffect(() => {
+    if (isVisible) {
       fetchResults();
-    }, [fetchResults])
-  );
+    }
+  }, [isVisible, fetchResults]);
 
   if (loading) {
     return (
@@ -85,17 +83,14 @@ export default function Activity2Results({ activity }) {
   );
 }
 
-// STEM-121: Single saved result card — shows 3 sounds, peak dB, risk labels, loudest source.
 function ResultCard({ row }) {
   const { payload, createdAt, synced } = row;
   const [expanded, setExpanded] = useState(false);
 
-  // STEM-121: All payloads from Activity 2 are multi-attempt — but defend against odd cases.
   const attempts = Array.isArray(payload.attempts) ? payload.attempts : [];
 
   return (
     <View style={styles.card}>
-      {/* STEM-121: Card header — timestamp + sync badge */}
       <View style={styles.cardHeader}>
         <Text style={styles.cardTimestamp}>
           {new Date(createdAt).toLocaleString()}
@@ -107,7 +102,6 @@ function ResultCard({ row }) {
         </View>
       </View>
 
-      {/* STEM-121: Summary table — one row per sound source. */}
       <View style={styles.tableContainer}>
         <View style={styles.tableHeader}>
           <Text style={[styles.tableHeaderCell, styles.sourceCol]}>Source</Text>
@@ -116,7 +110,6 @@ function ResultCard({ row }) {
         </View>
 
         {attempts.map((att, i) => {
-          // STEM-121: Re-derive the risk band from peakDb so colours stay consistent.
           const risk =
             att.peakDb != null
               ? processAmplitude(amplitudeFromDb(att.peakDb)).risk
@@ -128,7 +121,7 @@ function ResultCard({ row }) {
                 {att.sourceName || `Sound ${i + 1}`}
               </Text>
               <Text style={[styles.tableCell, styles.numCol]}>
-                {att.peakDb != null ? att.peakDb.toFixed(0) : '—'}
+                {att.peakDb != null ? att.peakDb.toFixed(0) : '–'}
               </Text>
               <View style={[styles.tableCell, styles.riskCol]}>
                 {risk ? (
@@ -136,7 +129,7 @@ function ResultCard({ row }) {
                     {risk.label}
                   </Text>
                 ) : (
-                  <Text style={styles.dashText}>—</Text>
+                  <Text style={styles.dashText}>–</Text>
                 )}
               </View>
             </View>
@@ -144,7 +137,6 @@ function ResultCard({ row }) {
         })}
       </View>
 
-      {/* STEM-121: Loudest source footer — mirrors what shows on the Record tab. */}
       {payload.loudest && (
         <View style={styles.loudestRow}>
           <Text style={styles.loudestLabel}>Loudest sound:</Text>
@@ -152,7 +144,6 @@ function ResultCard({ row }) {
         </View>
       )}
 
-      {/* STEM-121: Expand to see predictions + average dB per sound. */}
       <TouchableOpacity
         onPress={() => setExpanded((v) => !v)}
         style={styles.expandToggle}
@@ -170,15 +161,15 @@ function ResultCard({ row }) {
             </Text>
             <DetailRow
               label="Peak dB"
-              value={att.peakDb != null ? `${att.peakDb.toFixed(1)} dB` : '—'}
+              value={att.peakDb != null ? `${att.peakDb.toFixed(1)} dB` : '–'}
             />
             <DetailRow
               label="Average dB"
-              value={att.avgDb != null ? `${att.avgDb.toFixed(1)} dB` : '—'}
+              value={att.avgDb != null ? `${att.avgDb.toFixed(1)} dB` : '–'}
             />
-            <DetailRow label="Risk level" value={att.riskLabel || '—'} />
+            <DetailRow label="Risk level" value={att.riskLabel || '–'} />
             {i > 0 && (
-              <DetailRow label="Prediction" value={att.prediction || '—'} />
+              <DetailRow label="Prediction" value={att.prediction || '–'} />
             )}
           </View>
         ))}
@@ -195,8 +186,6 @@ function DetailRow({ label, value }) {
   );
 }
 
-// STEM-121: Reverse-map dB → dBFS to re-derive risk colour from a saved peakDb.
-//   Matches the calibration in soundLevel.js (DBFS_MIN=-60, DBFS_MAX=0, DB_MIN=30, DB_MAX=110).
 function amplitudeFromDb(db) {
   const t = (db - 30) / (110 - 30);
   return t * 60 - 60;
@@ -249,7 +238,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
-  // STEM-121: Result card styling — matches Activity1Results.
   card: {
     backgroundColor: '#F9FAFB',
     borderRadius: 8,
@@ -278,7 +266,6 @@ const styles = StyleSheet.create({
   syncBadgeText: { fontSize: 10, fontWeight: '500' },
   syncedText: { color: '#059669' },
   pendingText: { color: '#D97706' },
-  // STEM-121: Summary table — same shape as Activity1Results.
   tableContainer: {
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -324,7 +311,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#D1D5DB',
   },
-  // STEM-121: Loudest source footer.
   loudestRow: {
     flexDirection: 'row',
     marginTop: 12,
@@ -343,7 +329,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 1,
   },
-  // STEM-121: Expand toggle.
   expandToggle: {
     marginTop: 12,
     paddingVertical: 6,
@@ -353,7 +338,6 @@ const styles = StyleSheet.create({
     color: '#534AB7',
     fontWeight: '500',
   },
-  // STEM-121: Detail block.
   detailBlock: {
     marginTop: 12,
     paddingTop: 12,

@@ -1,6 +1,8 @@
 // STEM-111: Dispatcher for activity-specific Results tabs.
 // STEM-121: Registered Activity 2 (Sound Pollution Hunter).
 // STEM-125: Registered Activity 3 (Hand Fan Challenge).
+// STEM-145-fix: Pass isVisible prop so Results components re-fetch on tab switch
+//   (useFocusEffect doesn't fire with display:none tab toggling).
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
@@ -23,7 +25,7 @@ const RESULTS_COMPONENTS = {
   7: Activity7Results,
 };
 
-export default function ResultsRouter({ activity }) {
+export default function ResultsRouter({ activity, isVisible }) {
   const Component = RESULTS_COMPONENTS[activity.id];
 
   if (!Component) {
@@ -38,7 +40,7 @@ export default function ResultsRouter({ activity }) {
     );
   }
 
-  return <Component activity={activity} />;
+  return <Component activity={activity} isVisible={isVisible} />;
 }
 
 const styles = StyleSheet.create({

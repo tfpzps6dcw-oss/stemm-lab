@@ -1,7 +1,7 @@
 // STEM-125: Activity 3 Results tab — loads saved fan designs from SQLite, displays photos + bend angles.
+// STEM-145-fix: Replaced useFocusEffect with useEffect watching isVisible prop.
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -13,12 +13,11 @@ import {
 import { getResultsByActivity } from '../../services/resultsService';
 import { loadTeam } from '../../services/teamStorage';
 
-export default function Activity3Results({ activity }) {
+export default function Activity3Results({ activity, isVisible }) {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // STEM-125: Fetch saved results from SQLite on mount and when tab is revisited.
   const fetchResults = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -36,13 +35,12 @@ export default function Activity3Results({ activity }) {
     }
   }, [activity.id]);
 
-  // STEM-125: useFocusEffect re-fetches every time this tab becomes visible — needed because
-  //   Option B keeps all tabs mounted (display:none), so useEffect only fires once on mount.
-  useFocusEffect(
-    useCallback(() => {
+  // STEM-145-fix: Re-fetch results every time the Results tab becomes visible.
+  useEffect(() => {
+    if (isVisible) {
       fetchResults();
-    }, [fetchResults])
-  );
+    }
+  }, [isVisible, fetchResults]);
 
   if (loading) {
     return (
@@ -85,7 +83,6 @@ export default function Activity3Results({ activity }) {
   );
 }
 
-// STEM-125: Single saved result card — shows 3 designs with photos, distances, and bend angles.
 function ResultCard({ row }) {
   const { payload, createdAt, synced } = row;
   const [expanded, setExpanded] = useState(false);
@@ -94,7 +91,6 @@ function ResultCard({ row }) {
 
   return (
     <View style={styles.card}>
-      {/* STEM-125: Card header — timestamp + sync badge */}
       <View style={styles.cardHeader}>
         <Text style={styles.cardTimestamp}>
           {new Date(createdAt).toLocaleString()}
@@ -106,7 +102,6 @@ function ResultCard({ row }) {
         </View>
       </View>
 
-      {/* STEM-125: Summary table — one row per design */}
       <View style={styles.tableContainer}>
         <View style={styles.tableHeader}>
           <Text style={[styles.tableHeaderCell, styles.designCol]}>Design</Text>
@@ -122,18 +117,18 @@ function ResultCard({ row }) {
               {att.designName || `Design ${i + 1}`}
             </Text>
             <Text style={[styles.tableCell, styles.numCol]}>
-              {att.distanceCm != null ? `${att.distanceCm}cm` : '—'}
+              {att.distanceCm != null ? `${att.distanceCm}cm` : '–'}
             </Text>
             <Text style={[styles.tableCell, styles.numCol]}>
-              {att.predictedAngle != null ? `${att.predictedAngle}°` : '—'}
+              {att.predictedAngle != null ? `${att.predictedAngle}°` : '–'}
             </Text>
             <Text style={[styles.tableCell, styles.numCol]}>
-              {att.actualAngle != null ? `${att.actualAngle}°` : '—'}
+              {att.actualAngle != null ? `${att.actualAngle}°` : '–'}
             </Text>
             <View style={[styles.tableCell, styles.checkCol]}>
               {att.verdict === 'correct' && <Text style={styles.checkmark}>✓</Text>}
               {att.verdict === 'incorrect' && <Text style={styles.cross}>✗</Text>}
-              {!att.verdict && <Text style={styles.dashText}>—</Text>}
+              {!att.verdict && <Text style={styles.dashText}>–</Text>}
             </View>
           </View>
         ))}
@@ -146,7 +141,6 @@ function ResultCard({ row }) {
         </View>
       )}
 
-      {/* STEM-125: Expand to see photos + materials. */}
       <TouchableOpacity
         onPress={() => setExpanded((v) => !v)}
         style={styles.expandToggle}
