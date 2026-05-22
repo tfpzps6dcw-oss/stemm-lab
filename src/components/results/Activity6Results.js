@@ -1,13 +1,14 @@
 // STEM-137: Activity 6 (Reaction) Results tab — reads saved attempts from SQLite.
-// STEM-125: Added useFocusEffect so results refresh when tab becomes visible (Option B fix).
+// STEM-145-fix: Replaced useFocusEffect with useEffect watching isVisible prop.
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import ResultsTable from '../ResultsTable';
 import { getResultsByActivity } from '../../services/resultsService';
+// STEM-145: Video playback in Results — review recorded reaction test videos.
+import VideoPlayer from '../VideoPlayer';
 
-export default function Activity6Results({ activity }) {
+export default function Activity6Results({ activity, isVisible }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -25,20 +26,19 @@ export default function Activity6Results({ activity }) {
     }
   }, [activity.id]);
 
-  // STEM-125: useFocusEffect re-fetches every time this tab becomes visible — needed because
-  //   Option B keeps all tabs mounted (display:none), so useEffect only fires once on mount.
-  useFocusEffect(
-    useCallback(() => {
+  // STEM-145-fix: Re-fetch results every time the Results tab becomes visible.
+  useEffect(() => {
+    if (isVisible) {
       load();
-    }, [load])
-  );
+    }
+  }, [isVisible, load]);
 
   const columns = ['Tap (ms)', 'Trace %', 'Delay (ms)', 'Date'];
 
   const tableRows = rows.map((r) => [
-    typeof r.payload.tapReactionMs === 'number' ? String(r.payload.tapReactionMs) : '—',
-    typeof r.payload.traceAccuracyPct === 'number' ? `${r.payload.traceAccuracyPct}%` : '—',
-    typeof r.payload.traceMeanDelayMs === 'number' ? String(r.payload.traceMeanDelayMs) : '—',
+    typeof r.payload.tapReactionMs === 'number' ? String(r.payload.tapReactionMs) : '–',
+    typeof r.payload.traceAccuracyPct === 'number' ? `${r.payload.traceAccuracyPct}%` : '–',
+    typeof r.payload.traceMeanDelayMs === 'number' ? String(r.payload.traceMeanDelayMs) : '–',
     formatDate(r.createdAt),
   ]);
 
@@ -62,12 +62,20 @@ export default function Activity6Results({ activity }) {
           Lower tap time and higher trace % = better reaction control.
         </Text>
       )}
+      {/* STEM-145: Playback saved reaction test videos. */}
+      {rows.map((r, i) =>
+        r.payload.videoUri ? (
+          <View key={`vid-${i}`} style={{ marginTop: 12 }}>
+            <VideoPlayer uri={r.payload.videoUri} />
+          </View>
+        ) : null
+      )}
     </View>
   );
 }
 
 function formatDate(ms) {
-  if (!ms) return '—';
+  if (!ms) return '–';
   const d = new Date(ms);
   const dd = String(d.getDate()).padStart(2, '0');
   const mm = String(d.getMonth() + 1).padStart(2, '0');
