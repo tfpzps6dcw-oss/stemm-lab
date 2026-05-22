@@ -16,7 +16,10 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSMicrophoneUsageDescription": "STEMM Lab needs the microphone to measure sound levels for the Sound Pollution Hunter activity.",
-        "NSCameraUsageDescription": "STEMM Lab uses the camera to record photos of your fan designs for the Hand Fan Challenge."
+        "NSCameraUsageDescription": "STEMM Lab uses the camera to record photos of your fan designs for the Hand Fan Challenge.",
+        "SKAdNetworkItems": [
+          { "SKAdNetworkIdentifier": "cstr6suwn9.skadnetwork" }
+        ]
       }
     },
     "android": {
@@ -42,7 +45,14 @@
           "cameraPermission": "STEMM Lab uses the camera to record photos of your fan designs."
         }
       ],
-      "expo-video"
+      "expo-video",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+        }
+      ]
     ]
   }
 }
