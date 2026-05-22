@@ -59,7 +59,7 @@ export default function ActivityScreen({ route, navigation }) {
         <RecordRouter activity={activity} />
       </View>
       <View style={activeTab === 'results' ? styles.tabVisible : styles.tabHidden}>
-        <ResultsRouter activity={activity} />
+        <ResultsRouter activity={activity} isVisible={activeTab === 'results'} />
       </View>
       <View style={activeTab === 'reflect' ? styles.tabVisible : styles.tabHidden}>
         <ReflectTab activity={activity} />

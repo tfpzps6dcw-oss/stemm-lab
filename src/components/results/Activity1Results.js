@@ -1,7 +1,7 @@
 // STEM-112: Activity 1 Results tab — loads saved attempts from SQLite, displays summary + physics.
+// STEM-145-fix: Replaced useFocusEffect with useEffect watching isVisible prop.
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -11,13 +11,15 @@ import {
 } from 'react-native';
 import { getResultsByActivity } from '../../services/resultsService';
 import { loadTeam } from '../../services/teamStorage';
+// STEM-145: Video playback in Results — review recorded drop videos.
+import VideoPlayer from '../VideoPlayer';
 
-export default function Activity1Results({ activity }) {
+
+export default function Activity1Results({ activity, isVisible }) {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // STEM-112: Fetch saved results from SQLite on mount and when tab is revisited.
   const fetchResults = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -35,13 +37,12 @@ export default function Activity1Results({ activity }) {
     }
   }, [activity.id]);
 
-  // STEM-125: useFocusEffect re-fetches every time this tab becomes visible — needed because
-  //   Option B keeps all tabs mounted (display:none), so useEffect only fires once on mount.
-  useFocusEffect(
-    useCallback(() => {
+  // STEM-145-fix: Re-fetch results every time the Results tab becomes visible.
+  useEffect(() => {
+    if (isVisible) {
       fetchResults();
-    }, [fetchResults])
-  );
+    }
+  }, [isVisible, fetchResults]);
 
   if (loading) {
     return (
@@ -84,18 +85,15 @@ export default function Activity1Results({ activity }) {
   );
 }
 
-// STEM-112: Single saved result card — shows prediction, all 3 designs, and physics.
 function ResultCard({ row }) {
   const { payload, createdAt, synced } = row;
   const [expanded, setExpanded] = useState(false);
 
-  // STEM-112: Handle both old single-attempt payloads and new multi-attempt (STEM-114).
   const isMultiAttempt = Array.isArray(payload.attempts);
   const attempts = isMultiAttempt ? payload.attempts : [payload];
 
   return (
     <View style={styles.card}>
-      {/* STEM-112: Card header — timestamp + sync badge */}
       <View style={styles.cardHeader}>
         <Text style={styles.cardTimestamp}>
           {new Date(createdAt).toLocaleString()}
@@ -107,7 +105,6 @@ function ResultCard({ row }) {
         </View>
       </View>
 
-      {/* STEM-112: Show prediction if this is a multi-attempt result (STEM-114). */}
       {payload.prediction && (
         <View style={styles.predictionRow}>
           <Text style={styles.predictionLabel}>Prediction:</Text>
@@ -115,7 +112,6 @@ function ResultCard({ row }) {
         </View>
       )}
 
-      {/* STEM-112: Summary table — one row per design */}
       <View style={styles.tableContainer}>
         <View style={styles.tableHeader}>
           <Text style={[styles.tableHeaderCell, styles.designCol]}>Design</Text>
@@ -130,23 +126,22 @@ function ResultCard({ row }) {
               {att.designName || `Attempt ${i + 1}`}
             </Text>
             <Text style={[styles.tableCell, styles.numCol]}>
-              {att.predictedTimeS != null ? `${att.predictedTimeS}s` : '—'}
+              {att.predictedTimeS != null ? `${att.predictedTimeS}s` : '–'}
             </Text>
             <Text style={[styles.tableCell, styles.numCol]}>
               {att.fallTimeS != null
                 ? `${att.fallTimeS.toFixed(3)}s`
                 : att.fallTimeMs != null
                   ? `${(att.fallTimeMs / 1000).toFixed(3)}s`
-                  : '—'}
+                  : '–'}
             </Text>
             <Text style={[styles.tableCell, styles.numCol]}>
-              {att.velocity != null ? `${att.velocity.toFixed(2)} m/s` : '—'}
+              {att.velocity != null ? `${att.velocity.toFixed(2)} m/s` : '–'}
             </Text>
           </View>
         ))}
       </View>
 
-      {/* STEM-112: Expand to see full physics breakdown per design */}
       <TouchableOpacity
         onPress={() => setExpanded((v) => !v)}
         style={styles.expandToggle}
@@ -171,6 +166,10 @@ function ResultCard({ row }) {
             <DetailRow label="Weight" value={formatUnit(att.weight, 'N')} />
             <DetailRow label="Drag force" value={formatUnit(att.dragForce, 'N')} />
             <DetailRow label="G-force" value={formatUnit(att.gForce, 'g')} />
+            {/* STEM-145: Playback saved drop video with slow-mo controls. */}
+            {att.videoUri && (
+              <VideoPlayer uri={att.videoUri} style={{ marginTop: 12 }} />
+            )}
           </View>
         ))}
     </View>
@@ -187,12 +186,12 @@ function DetailRow({ label, value }) {
 }
 
 function formatMs(ms) {
-  if (ms == null) return '—';
+  if (ms == null) return '–';
   return `${(ms / 1000).toFixed(3)} s`;
 }
 
 function formatUnit(value, unit) {
-  if (value == null || !Number.isFinite(value)) return '—';
+  if (value == null || !Number.isFinite(value)) return '–';
   return `${value.toFixed(2)} ${unit}`;
 }
 
@@ -243,7 +242,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
-  // STEM-112: Result card styling.
   card: {
     backgroundColor: '#F9FAFB',
     borderRadius: 8,
@@ -272,7 +270,6 @@ const styles = StyleSheet.create({
   syncBadgeText: { fontSize: 10, fontWeight: '500' },
   syncedText: { color: '#059669' },
   pendingText: { color: '#D97706' },
-  // STEM-112: Prediction row.
   predictionRow: {
     flexDirection: 'row',
     marginBottom: 12,
@@ -288,7 +285,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     flex: 1,
   },
-  // STEM-112: Summary table.
   tableContainer: {
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -324,7 +320,6 @@ const styles = StyleSheet.create({
   },
   designCol: { flex: 2, textAlign: 'left' },
   numCol: { flex: 1 },
-  // STEM-112: Expand toggle for physics detail.
   expandToggle: {
     marginTop: 12,
     paddingVertical: 6,
@@ -334,7 +329,6 @@ const styles = StyleSheet.create({
     color: '#534AB7',
     fontWeight: '500',
   },
-  // STEM-112: Physics detail block.
   detailBlock: {
     marginTop: 12,
     paddingTop: 12,
