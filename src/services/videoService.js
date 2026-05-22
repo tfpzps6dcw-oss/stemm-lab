@@ -1,5 +1,6 @@
 // STEM-145: Video recording + persistent storage for slow-mo review across all activities.
-//   Mirrors cameraService.js pattern but handles video files instead of photos.
+// STEM-145-fix: Fixed permission flow — track whether user has been prompted, so "never asked"
+//   doesn't show the "denied" message. Now always shows "Grant Access" until explicitly denied.
 
 import { useRef, useState, useCallback } from 'react';
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
@@ -24,15 +25,27 @@ export function useVideoRecorder() {
   const cameraRef = useRef(null);
   const [isRecording, setIsRecording] = useState(false);
 
-  // STEM-145: Both camera + mic need to be granted for video with audio.
-  const hasPermission =
-    camPermission?.granted && micPermission?.granted ? true
-    : camPermission?.granted === false || micPermission?.granted === false ? false
-    : null; // null = not yet asked
+  // STEM-145-fix: Track whether we've actually prompted the user yet.
+  //   expo-camera returns { granted: false } for both "never asked" and "denied",
+  //   so without this flag we can't tell the difference.
+  const [hasRequested, setHasRequested] = useState(false);
 
+  // STEM-145-fix: Permission state logic:
+  //   - Both granted → true (show camera preview)
+  //   - We've asked and at least one denied → false (show "denied" message)
+  //   - Haven't asked yet → null (show "Grant Access" button)
+  const hasPermission =
+    camPermission?.granted && micPermission?.granted
+      ? true
+      : hasRequested
+        ? false
+        : null;
+
+  // STEM-145-fix: Request both permissions and mark that we've asked.
   const requestPermission = useCallback(async () => {
     const cam = await requestCamPermission();
     const mic = await requestMicPermission();
+    setHasRequested(true);
     return cam.granted && mic.granted;
   }, [requestCamPermission, requestMicPermission]);
 
