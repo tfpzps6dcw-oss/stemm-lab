@@ -1,4 +1,5 @@
 // STEM-122, STEM-125: Activity 3 Record tab — fan distance chips, photo capture, bend angle input, save to data layer.
+// STEM-145: Added video recording + slow-mo playback per attempt for capturing fan test evidence.
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
@@ -16,6 +17,10 @@ import {
 import { useCameraCapture, CameraView, deletePhoto } from '../../services/cameraService';
 import { parseAngle, getAngleVerdict, getMostBent, ANGLE_LIMITS } from '../../services/bendAngle';
 import { saveResult } from '../../services/resultSaveHelper';
+// STEM-145: Video recording and slow-mo playback for capturing fan test evidence.
+import VideoRecorder from '../VideoRecorder';
+import VideoPlayer from '../VideoPlayer';
+import { deleteVideo } from '../../services/videoService';
 
 // STEM-125: 3 fan design attempts, mirroring Activity 1/2's multi-attempt pattern.
 const ATTEMPT_LABELS = ['Design 1', 'Design 2', 'Design 3'];
@@ -31,6 +36,7 @@ const INITIAL_ATTEMPT = {
   predictedAngle: '',   // student's prediction (degrees)
   actualAngle: '',      // measured/observed angle (degrees)
   photoUri: null,       // STEM-123: saved photo path
+  videoUri: null,       // STEM-145: recorded video URI for this attempt
 };
 
 export default function Activity3Record({ activity }) {
@@ -51,11 +57,23 @@ export default function Activity3Record({ activity }) {
   const currentAttempt = attempts[currentAttemptIdx];
 
   // STEM-123: Clean up orphan photos if the component unmounts mid-save.
-  //   We hold onto attempts in a ref so the cleanup effect sees the latest values.
   const attemptsRef = useRef(attempts);
   useEffect(() => {
     attemptsRef.current = attempts;
   }, [attempts]);
+
+  // STEM-145: Save recorded video URI to the current attempt, delete any previous video for this attempt.
+  const handleVideoSaved = useCallback(async (uri) => {
+    const oldUri = attempts[currentAttemptIdx].videoUri;
+    if (oldUri) {
+      await deleteVideo(oldUri);
+    }
+    setAttempts((prev) =>
+      prev.map((att, i) =>
+        i === currentAttemptIdx ? { ...att, videoUri: uri } : att
+      )
+    );
+  }, [currentAttemptIdx, attempts]);
 
   const updateAttemptInput = (key) => (value) => {
     setAttempts((prev) =>
@@ -78,7 +96,6 @@ export default function Activity3Record({ activity }) {
         return;
       }
     } else if (hasPermission === null) {
-      // STEM-123: Permission hook hasn't loaded yet — trigger the request.
       const granted = await requestPermission();
       if (!granted) return;
     }
@@ -90,7 +107,6 @@ export default function Activity3Record({ activity }) {
     try {
       const uri = await capture();
 
-      // STEM-123: Drop the old photo if there was one — keeps disk usage tight.
       if (currentAttempt.photoUri) {
         await deletePhoto(currentAttempt.photoUri);
       }
@@ -117,7 +133,6 @@ export default function Activity3Record({ activity }) {
   }
 
   // STEM-124, STEM-125: Save validation — every attempt needs a name, photo, and actual angle.
-  //   Predicted angle is optional but encouraged via the UI.
   const canSave =
     attempts.every(
       (att) =>
@@ -142,6 +157,7 @@ export default function Activity3Record({ activity }) {
           actualAngle: parseAngle(att.actualAngle),
           verdict: getAngleVerdict(att.predictedAngle, att.actualAngle),
           photoUri: att.photoUri,
+          videoUri: att.videoUri,  // STEM-145: path to recorded fan test video
         })),
         mostBent: getMostBent(attempts),
       };
@@ -246,6 +262,25 @@ export default function Activity3Record({ activity }) {
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* STEM-145: Video recorder — students film the fan test to observe paper movement. */}
+        <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Record the fan test</Text>
+        <VideoRecorder
+          activityPrefix={`fan_d${currentAttemptIdx + 1}`}
+          onVideoSaved={handleVideoSaved}
+          style={{ marginBottom: 12 }}
+        />
+
+        {/* STEM-145: Slow-mo playback — review to observe bend angle and paper movement. */}
+        {currentAttempt.videoUri && (
+          <>
+            <Text style={[styles.sectionTitle, { marginTop: 12 }]}>Review (slow-mo)</Text>
+            <VideoPlayer
+              uri={currentAttempt.videoUri}
+              style={{ marginBottom: 12 }}
+            />
+          </>
+        )}
 
         {/* STEM-123: Photo capture section. */}
         <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Photo evidence</Text>
@@ -413,21 +448,21 @@ function SummaryTable({ attempts }) {
         return (
           <View key={i} style={styles.tableRow}>
             <Text style={[styles.tableCell, styles.designCol]}>
-              {att.designName || '—'}
+              {att.designName || '–'}
             </Text>
             <Text style={[styles.tableCell, styles.numCol]}>
               {att.distanceCm}cm
             </Text>
             <Text style={[styles.tableCell, styles.numCol]}>
-              {att.predictedAngle ? `${att.predictedAngle}°` : '—'}
+              {att.predictedAngle ? `${att.predictedAngle}°` : '–'}
             </Text>
             <Text style={[styles.tableCell, styles.numCol]}>
-              {actualNum !== null ? `${actualNum}°` : '—'}
+              {actualNum !== null ? `${actualNum}°` : '–'}
             </Text>
             <View style={[styles.tableCell, styles.checkCol]}>
               {verdict === 'correct' && <Text style={styles.checkmark}>✓</Text>}
               {verdict === 'incorrect' && <Text style={styles.cross}>✗</Text>}
-              {verdict === null && <Text style={styles.dashText}>—</Text>}
+              {verdict === null && <Text style={styles.dashText}>–</Text>}
             </View>
           </View>
         );
@@ -438,7 +473,7 @@ function SummaryTable({ attempts }) {
           <Text style={styles.tableFooterLabel}>
             Bent the most:{' '}
             <Text style={styles.tableFooterValue}>
-              {getMostBent(attempts) || '—'}
+              {getMostBent(attempts) || '–'}
             </Text>
           </Text>
         </View>

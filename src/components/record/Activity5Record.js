@@ -1,6 +1,7 @@
 // STEM-132: Activity 5 (Stretch) Record tab — timed movement + smoothness output.
+// STEM-145: Added video recording + slow-mo playback for capturing stretch movement evidence.
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { scheduleTimerWarning, cancelNotification } from '../../services/notificationService';
 import {
   View,
@@ -13,6 +14,10 @@ import {
 import { startSampling, isAccelerometerAvailable } from '../../services/accelerometerService';
 import { calculateSmoothness } from '../../services/smoothnessScore';
 import { saveResult } from '../../services/resultSaveHelper';
+// STEM-145: Video recording and slow-mo playback for capturing stretch movement evidence.
+import VideoRecorder from '../VideoRecorder';
+import VideoPlayer from '../VideoPlayer';
+import { deleteVideo } from '../../services/videoService';
 
 const SAMPLE_INTERVAL_MS = 50; // 20 Hz
 const DEFAULT_DURATION_SEC = 5;
@@ -28,6 +33,7 @@ export default function Activity5Record({ activity }) {
   const [result, setResult] = useState(null); // {score, variance, meanJerk, sampleCount, durationMs}
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [videoUri, setVideoUri] = useState(null); // STEM-145: recorded video for this motion
 
   const sessionRef = useRef(null);
   const countdownRef = useRef(null);
@@ -42,6 +48,14 @@ export default function Activity5Record({ activity }) {
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
   }, []);
+
+  // STEM-145: Save recorded video URI, delete any previous video for this motion.
+  const handleVideoSaved = useCallback(async (uri) => {
+    if (videoUri) {
+      await deleteVideo(videoUri);
+    }
+    setVideoUri(uri);
+  }, [videoUri]);
 
   async function start() {
     setError(null);
@@ -132,10 +146,12 @@ export default function Activity5Record({ activity }) {
           variance: Number(result.variance.toFixed(5)),
           meanJerk: Number(result.meanJerk.toFixed(3)),
           durationSec,
+          videoUri,  // STEM-145: path to recorded stretch movement video
         },
       });
       Alert.alert('Saved', 'Smoothness score recorded.');
       setMotion('');
+      setVideoUri(null); // STEM-145: Clear video for next motion
       cancel();
     } catch (err) {
       setError(err.message || 'Failed to save result.');
@@ -184,6 +200,25 @@ export default function Activity5Record({ activity }) {
         onChangeText={setMotion}
         editable={phase === 'idle' || phase === 'done'}
       />
+
+      {/* STEM-145: Video recorder — students film the stretch movement. */}
+      <Text style={styles.sectionTitle}>Record the movement</Text>
+      <VideoRecorder
+        activityPrefix="stretch"
+        onVideoSaved={handleVideoSaved}
+        style={{ marginBottom: 12 }}
+      />
+
+      {/* STEM-145: Slow-mo playback — review movement smoothness and coordination. */}
+      {videoUri && (
+        <>
+          <Text style={styles.sectionTitle}>Review (slow-mo)</Text>
+          <VideoPlayer
+            uri={videoUri}
+            style={{ marginBottom: 12 }}
+          />
+        </>
+      )}
 
       {/* Duration picker — only visible idle */}
       {phase === 'idle' && (

@@ -1,13 +1,14 @@
 // STEM-129: Activity 4 (Earthquake) Results tab — reads saved attempts from SQLite.
 // STEM-125: Added useFocusEffect so results refresh when tab becomes visible (Option B fix).
+// STEM-145-fix: Replaced useFocusEffect with useEffect watching isVisible prop — useFocusEffect
+//   doesn't fire with display:none tab toggling.
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import ResultsTable from '../ResultsTable';
 import { getResultsByActivity } from '../../services/resultsService';
 
-export default function Activity4Results({ activity }) {
+export default function Activity4Results({ activity, isVisible }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -25,19 +26,17 @@ export default function Activity4Results({ activity }) {
     }
   }, [activity.id]);
 
-  // STEM-125: useFocusEffect re-fetches every time this tab becomes visible — needed because
-  //   Option B keeps all tabs mounted (display:none), so useEffect only fires once on mount.
-  useFocusEffect(
-    useCallback(() => {
+  // STEM-145-fix: Re-fetch results every time the Results tab becomes visible.
+  useEffect(() => {
+    if (isVisible) {
       load();
-    }, [load])
-  );
+    }
+  }, [isVisible, load]);
 
   const columns = ['Design', 'Peak (g)', 'Date'];
-
   const tableRows = rows.map((r) => [
-    r.payload.design ?? '—',
-    typeof r.payload.peakG === 'number' ? r.payload.peakG.toFixed(2) : '—',
+    r.payload.design ?? '–',
+    typeof r.payload.peakG === 'number' ? r.payload.peakG.toFixed(2) : '–',
     formatDate(r.createdAt),
   ]);
 
@@ -66,7 +65,7 @@ export default function Activity4Results({ activity }) {
 }
 
 function formatDate(ms) {
-  if (!ms) return '—';
+  if (!ms) return '–';
   const d = new Date(ms);
   const dd = String(d.getDate()).padStart(2, '0');
   const mm = String(d.getMonth() + 1).padStart(2, '0');

@@ -1,4 +1,6 @@
 // STEM-114, STEM-111, STEM-112: Activity 1 Record tab — multi-attempt prototype tracking with predictions.
+// STEM-145: Added video recording (VideoRecorder) and slow-mo playback (VideoPlayer) per attempt.
+//   Students record each drop, review in slow-mo to measure contact time for g-force calculations.
 
 import React, { useState, useCallback } from 'react';
 import {
@@ -11,6 +13,10 @@ import {
   ScrollView,
 } from 'react-native';
 import Timer from '../Timer';
+// STEM-145: Video recording and slow-mo playback components for capturing drop evidence.
+import VideoRecorder from '../VideoRecorder';
+import VideoPlayer from '../VideoPlayer';
+import { deleteVideo } from '../../services/videoService';
 import {
   calculateVelocity,
   calculateAcceleration,
@@ -31,6 +37,7 @@ const INITIAL_ATTEMPT = {
   contactTime: '',      // seconds (HS only)
   fallTimeMs: null,     // measured by timer
   calcs: null,          // computed physics results
+  videoUri: null,       // STEM-145: recorded video URI for this attempt
 };
 
 export default function Activity1Record({ activity }) {
@@ -50,6 +57,19 @@ export default function Activity1Record({ activity }) {
   const [saveStatus, setSaveStatus] = useState(null); // 'synced' | 'local' | 'error' | null
 
   const currentAttempt = attempts[currentAttemptIdx];
+
+  // STEM-145: Save recorded video URI to the current attempt, delete any previous video for this attempt.
+  const handleVideoSaved = useCallback(async (uri) => {
+    const oldUri = attempts[currentAttemptIdx].videoUri;
+    if (oldUri) {
+      await deleteVideo(oldUri);
+    }
+    setAttempts((prev) =>
+      prev.map((att, i) =>
+        i === currentAttemptIdx ? { ...att, videoUri: uri } : att
+      )
+    );
+  }, [currentAttemptIdx, attempts]);
 
   // STEM-114: Update inputs for current attempt.
   const updateAttemptInput = (key) => (value) => {
@@ -108,6 +128,7 @@ export default function Activity1Record({ activity }) {
           contactTimeS: att.contactTime ? parseFloat(att.contactTime) : null,
           fallTimeMs: att.fallTimeMs,
           fallTimeS: att.fallTimeMs / 1000,
+          videoUri: att.videoUri,  // STEM-145: path to recorded drop video
           ...calculateAll(att.fallTimeMs, {
             dropHeight: att.dropHeight,
             toyMass: att.toyMass,
@@ -216,6 +237,25 @@ export default function Activity1Record({ activity }) {
           editable={!saving}
         />
 
+        {/* STEM-145: Video recorder — students film each drop attempt. */}
+        <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Record the drop</Text>
+        <VideoRecorder
+          activityPrefix={`parachute_d${currentAttemptIdx + 1}`}
+          onVideoSaved={handleVideoSaved}
+          style={{ marginBottom: 12 }}
+        />
+
+        {/* STEM-145: Slow-mo playback — review the drop to measure contact time for g-force. */}
+        {currentAttempt.videoUri && (
+          <>
+            <Text style={[styles.sectionTitle, { marginTop: 12 }]}>Review (slow-mo)</Text>
+            <VideoPlayer
+              uri={currentAttempt.videoUri}
+              style={{ marginBottom: 12 }}
+            />
+          </>
+        )}
+
         {/* STEM-111: Timer drives fall time measurement */}
         <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Drop & time</Text>
         <Timer onStop={handleTimerStop} />
@@ -226,11 +266,11 @@ export default function Activity1Record({ activity }) {
         {/* STEM-114: Predicted vs Actual comparison */}
         <ComparisonRow
           label="Predicted time"
-          predicted={currentAttempt.predictedTime ? `${currentAttempt.predictedTime} s` : '—'}
+          predicted={currentAttempt.predictedTime ? `${currentAttempt.predictedTime} s` : '–'}
           actual={
             currentAttempt.fallTimeMs !== null
               ? `${(currentAttempt.fallTimeMs / 1000).toFixed(3)} s`
-              : '—'
+              : '–'
           }
           verdict={getVerdict(
             currentAttempt.predictedTime,
@@ -356,7 +396,7 @@ function ComparisonRow({ label, predicted, actual, verdict }) {
         >
           {verdict === 'correct' && '✓ Correct'}
           {verdict === 'incorrect' && '✗ Try again'}
-          {verdict === null && '—'}
+          {verdict === null && '–'}
         </Text>
       </View>
     </View>
@@ -384,16 +424,16 @@ function SummaryTable({ attempts, prediction }) {
 
       {attempts.map((att, i) => {
         const actualTime =
-          att.fallTimeMs !== null ? (att.fallTimeMs / 1000).toFixed(3) : '—';
+          att.fallTimeMs !== null ? (att.fallTimeMs / 1000).toFixed(3) : '–';
         const verdict = getVerdict(att.predictedTime, att.fallTimeMs);
 
         return (
           <View key={i} style={styles.tableRow}>
             <Text style={[styles.tableCell, styles.tableDesignCol]}>
-              {att.designName || '—'}
+              {att.designName || '–'}
             </Text>
             <Text style={[styles.tableCell, styles.tableNumCol]}>
-              {att.predictedTime || '—'}
+              {att.predictedTime || '–'}
             </Text>
             <Text style={[styles.tableCell, styles.tableNumCol]}>
               {actualTime}
@@ -405,7 +445,7 @@ function SummaryTable({ attempts, prediction }) {
               {verdict === 'incorrect' && (
                 <Text style={styles.verdictCross}>✗</Text>
               )}
-              {verdict === null && <Text style={styles.verdictDash}>—</Text>}
+              {verdict === null && <Text style={styles.verdictDash}>–</Text>}
             </View>
           </View>
         );
@@ -417,12 +457,12 @@ function SummaryTable({ attempts, prediction }) {
           <Text style={styles.tableFooterLabel}>
             Fastest design:{' '}
             <Text style={styles.tableFooterValue}>
-              {getFastestDesign(attempts) || '—'}
+              {getFastestDesign(attempts) || '–'}
             </Text>
           </Text>
           <Text style={styles.tableFooterLabel}>
             Your prediction:{' '}
-            <Text style={styles.tableFooterValue}>{prediction || '—'}</Text>
+            <Text style={styles.tableFooterValue}>{prediction || '–'}</Text>
           </Text>
         </View>
       )}
@@ -473,7 +513,7 @@ function calculateAll(fallTimeMs, inputs) {
   if (fallTimeMs === null || fallTimeMs <= 0) return result;
   const fallTimeS = fallTimeMs / 1000;
 
-  // STEM-111: Wrap each calc in try/catch — bad inputs throw, we want to display "—".
+  // STEM-111: Wrap each calc in try/catch — bad inputs throw, we want to display "–".
   try {
     if (dropHeight > 0) {
       result.velocity = calculateVelocity(dropHeight, fallTimeS);
@@ -491,14 +531,14 @@ function calculateAll(fallTimeMs, inputs) {
       result.gForce = calculateGForceNoBounce(result.velocity, contactTime);
     }
   } catch {
-    // STEM-111: Silent — UI shows "—" for any field that didn't compute.
+    // STEM-111: Silent — UI shows "–" for any field that didn't compute.
   }
 
   return result;
 }
 
 function formatValue(value, unit) {
-  if (value === null || !Number.isFinite(value)) return '—';
+  if (value === null || !Number.isFinite(value)) return '–';
   return `${value.toFixed(2)} ${unit}`;
 }
 
