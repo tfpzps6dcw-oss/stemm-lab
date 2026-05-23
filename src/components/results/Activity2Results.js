@@ -12,8 +12,6 @@ import {
 import { getResultsByActivity } from '../../services/resultsService';
 import { loadTeam } from '../../services/teamStorage';
 import { processAmplitude } from '../../services/soundLevel';
-// STEM-145: Video playback in Results — review recorded sound source videos.
-import VideoPlayer from '../VideoPlayer';
 
 export default function Activity2Results({ activity, isVisible }) {
   const [results, setResults] = useState([]);
@@ -172,10 +170,6 @@ function ResultCard({ row }) {
             <DetailRow label="Risk level" value={att.riskLabel || '–'} />
             {i > 0 && (
               <DetailRow label="Prediction" value={att.prediction || '–'} />
-            )}
-            {/* STEM-145: Playback saved sound source video. */}
-            {att.videoUri && (
-              <VideoPlayer uri={att.videoUri} style={{ marginTop: 12 }} />
             )}
           </View>
         ))}
