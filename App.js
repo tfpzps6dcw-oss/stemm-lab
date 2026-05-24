@@ -12,6 +12,7 @@ import RegisterScreen from './src/screens/RegisterScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import ActivityScreen from './src/screens/ActivityScreen';
+import MapScreen from './src/screens/MapScreen'; // STEM-146
 
 import { onAuthStateChanged } from './src/services/authService';
 import { loadTeam } from './src/services/teamStorage';
@@ -111,6 +112,11 @@ export default function App() {
               <Stack.Screen name="Leaderboard" options={{ headerShown: false }}>
                 {(props) => <LeaderboardScreen {...props} team={team} />}
               </Stack.Screen>
+              <Stack.Screen
+                name="Map"
+                component={MapScreen} // STEM-146: GPS map screen
+                options={{ title: 'Activity Map', headerBackTitle: 'Back' }}
+              />
             </>
           )}
         </Stack.Navigator>
