@@ -11,9 +11,6 @@ import {
 } from 'react-native';
 import { getResultsByActivity } from '../../services/resultsService';
 import { loadTeam } from '../../services/teamStorage';
-// STEM-145: Video playback in Results — review recorded drop videos.
-import VideoPlayer from '../VideoPlayer';
-
 
 export default function Activity1Results({ activity, isVisible }) {
   const [results, setResults] = useState([]);
@@ -166,10 +163,6 @@ function ResultCard({ row }) {
             <DetailRow label="Weight" value={formatUnit(att.weight, 'N')} />
             <DetailRow label="Drag force" value={formatUnit(att.dragForce, 'N')} />
             <DetailRow label="G-force" value={formatUnit(att.gForce, 'g')} />
-            {/* STEM-145: Playback saved drop video with slow-mo controls. */}
-            {att.videoUri && (
-              <VideoPlayer uri={att.videoUri} style={{ marginTop: 12 }} />
-            )}
           </View>
         ))}
     </View>

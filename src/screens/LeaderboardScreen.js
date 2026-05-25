@@ -155,57 +155,86 @@ export default function LeaderboardScreen({ navigation, team }) {
 }
 
 // Per-activity ranking metric — { key in payload, label, lower-or-higher better }
+// Per-activity ranking config.
+//   key       — payload field to rank by (or 'extractor' for nested values)
+//   label     — unit shown next to the score
+//   direction — 'asc' = lower is better, 'desc' = higher is better
+//   extract   — optional fn to pull a number out of a complex payload
 const RANKING = {
-  1: { key: 'velocity', label: 'm/s', direction: 'desc' },
-  2: { key: 'maxDb', label: 'dB', direction: 'desc' },
-  3: { key: 'angle', label: '°', direction: 'desc' },
+  // Activity 1 saves an array of attempts; rank by the best (highest) velocity across attempts.
+  1: {
+    label: 'm/s',
+    direction: 'desc',
+    extract: (payload) => {
+      if (!Array.isArray(payload?.attempts)) return null;
+      const velocities = payload.attempts
+        .map((a) => toNumber(a.velocity))
+        .filter((v) => v !== null);
+      if (velocities.length === 0) return null;
+      return Math.max(...velocities);
+    },
+  },
+  2: { key: 'peakDb', label: 'dB', direction: 'desc' },
+  3: { key: 'actualAngle', label: '°', direction: 'desc' },
   4: { key: 'peakG', label: 'g', direction: 'asc' },
   5: { key: 'score', label: 'pts', direction: 'desc' },
   6: { key: 'tapReactionMs', label: 'ms', direction: 'asc' },
   7: { key: 'restBpm', label: 'bpm', direction: 'asc' },
 };
 
+// Coerce a value to a finite number, or null if it can't be.
+function toNumber(v) {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v === 'string' && v.trim() !== '') {
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+// Pull the rankable number out of a result's payload, using the activity's config.
+function extractValue(result, cfg) {
+  if (!result?.payload || !cfg) return null;
+  if (typeof cfg.extract === 'function') return cfg.extract(result.payload);
+  if (cfg.key) return toNumber(result.payload[cfg.key]);
+  return null;
+}
+
 function rankResults(rows, activityId) {
-  const cfg = RANKING[activityId] ?? { key: null, direction: 'desc' };
+  const cfg = RANKING[activityId] ?? { direction: 'desc' };
   // One row per team — keep each team's best result for this metric
   const bestByTeam = new Map();
   for (const r of rows) {
     const teamId = r.teamId ?? '__unknown__';
-    const value = cfg.key ? r.payload?.[cfg.key] : null;
+    const value = extractValue(r, cfg);
+    if (value === null) continue; // skip results with no rankable value
     const existing = bestByTeam.get(teamId);
     if (!existing) {
-      bestByTeam.set(teamId, r);
+      bestByTeam.set(teamId, { result: r, value });
       continue;
     }
-    const existingValue = cfg.key ? existing.payload?.[cfg.key] : null;
-    if (typeof value !== 'number' || typeof existingValue !== 'number') continue;
-    const better = cfg.direction === 'asc' ? value < existingValue : value > existingValue;
-    if (better) bestByTeam.set(teamId, r);
+    const better = cfg.direction === 'asc' ? value < existing.value : value > existing.value;
+    if (better) bestByTeam.set(teamId, { result: r, value });
   }
   const list = Array.from(bestByTeam.values());
-  list.sort((a, b) => {
-    const av = cfg.key ? a.payload?.[cfg.key] : 0;
-    const bv = cfg.key ? b.payload?.[cfg.key] : 0;
-    if (typeof av !== 'number' || typeof bv !== 'number') return 0;
-    return cfg.direction === 'asc' ? av - bv : bv - av;
-  });
-  return list;
+  list.sort((a, b) => (cfg.direction === 'asc' ? a.value - b.value : b.value - a.value));
+  // Return the result objects, with the computed value attached for display
+  return list.map((entry) => ({ ...entry.result, _rankValue: entry.value }));
 }
 
 function formatScore(row, activityId) {
-  const cfg = RANKING[activityId] ?? { key: null, label: '' };
-  const value = cfg.key ? row.payload?.[cfg.key] : null;
+  const cfg = RANKING[activityId] ?? { label: '' };
+  const value = row._rankValue ?? extractValue(row, cfg);
   if (typeof value !== 'number') return '—';
-  const formatted =
-    Math.abs(value) >= 100 ? Math.round(value).toString() : value.toFixed(2);
-  return `${formatted} ${cfg.label}`.trim();
+  const formatted = Math.abs(value) >= 100 ? Math.round(value).toString() : value.toFixed(2);
+  return `${formatted} ${cfg.label ?? ''}`.trim();
 }
 
 function rankingExplanation(activityId) {
   const cfg = RANKING[activityId];
   if (!cfg) return '';
   const direction = cfg.direction === 'asc' ? 'Lower is better' : 'Higher is better';
-  return `${direction} · ranked by best ${cfg.key} per team`;
+  return direction;
 }
 
 function formatDate(ms) {
