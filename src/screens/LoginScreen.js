@@ -1,3 +1,4 @@
+// STEM-148: Added testID props to support Firebase Test Lab Robo script login.
 import React, { useState } from 'react';
 import {
   View,
@@ -11,22 +12,22 @@ import {
   Alert,
 } from 'react-native';
 import { signIn } from '../services/authService';
-
+ 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
+ 
   async function handleSignIn() {
     setError(null);
-
+ 
     // Basic validation
     if (!email.trim() || !password) {
       setError('Please enter both email and password.');
       return;
     }
-
+ 
     setLoading(true);
     try {
       await signIn(email.trim(), password);
@@ -37,7 +38,7 @@ export default function LoginScreen({ navigation }) {
       setLoading(false);
     }
   }
-
+ 
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -45,7 +46,7 @@ export default function LoginScreen({ navigation }) {
     >
       <View style={styles.content}>
         <Text style={styles.title}>Sign in</Text>
-
+ 
         <Text style={styles.label}>Email</Text>
         <TextInput
           style={styles.input}
@@ -57,8 +58,9 @@ export default function LoginScreen({ navigation }) {
           autoCapitalize="none"
           autoCorrect={false}
           editable={!loading}
+          testID="login-email"
         />
-
+ 
         <Text style={styles.label}>Password</Text>
         <TextInput
           style={styles.input}
@@ -68,14 +70,16 @@ export default function LoginScreen({ navigation }) {
           onChangeText={setPassword}
           secureTextEntry
           editable={!loading}
+          testID="login-password"
         />
-
+ 
         {error && <Text style={styles.errorText}>{error}</Text>}
-
+ 
         <TouchableOpacity
           style={[styles.signInButton, loading && styles.buttonDisabled]}
           onPress={handleSignIn}
           disabled={loading}
+          testID="login-submit"
         >
           {loading ? (
             <ActivityIndicator color="#FFFFFF" />
@@ -83,7 +87,7 @@ export default function LoginScreen({ navigation }) {
             <Text style={styles.signInButtonText}>Sign in</Text>
           )}
         </TouchableOpacity>
-
+ 
         <TouchableOpacity
           style={styles.createAccountButton}
           onPress={() => navigation.navigate('Register')}
@@ -91,7 +95,7 @@ export default function LoginScreen({ navigation }) {
         >
           <Text style={styles.createAccountText}>Create account</Text>
         </TouchableOpacity>
-
+ 
         <Text style={styles.hint}>
           Test login: test@test.com / test123
         </Text>
@@ -99,7 +103,7 @@ export default function LoginScreen({ navigation }) {
     </KeyboardAvoidingView>
   );
 }
-
+ 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
