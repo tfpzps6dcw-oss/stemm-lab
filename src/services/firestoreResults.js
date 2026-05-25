@@ -1,5 +1,5 @@
 // STEM-107: Firestore collections + service for activity results.
-
+// STEM-146: Added fetchResultsWithCoords for GPS map pins.
 import {
   collection,
   addDoc,
@@ -30,7 +30,6 @@ export async function uploadResult({
   if (!payload || typeof payload !== 'object') {
     throw new Error('uploadResult: payload must be an object');
   }
-
   const docRef = await addDoc(collection(db, RESULTS_COLLECTION), {
     activityId,
     teamId,
@@ -41,21 +40,18 @@ export async function uploadResult({
     serverCreatedAt: serverTimestamp(),
     localId,
   });
-
   return docRef.id;
 }
 
 // STEM-107: Live subscription for leaderboard — fires whenever results change.
 export function listenToResultsByActivity(activityId, callback, options = {}) {
   const { limit = 100 } = options;
-
   const q = query(
     collection(db, RESULTS_COLLECTION),
     where('activityId', '==', activityId),
     orderBy('createdAt', 'desc'),
     fsLimit(limit)
   );
-
   return onSnapshot(
     q,
     (snapshot) => {
@@ -72,14 +68,12 @@ export function listenToResultsByActivity(activityId, callback, options = {}) {
 // STEM-107: One-off fetch (no live listener) — useful for "my team's history".
 export async function fetchResultsByTeam(teamId, options = {}) {
   const { limit = 100 } = options;
-
   const q = query(
     collection(db, RESULTS_COLLECTION),
     where('teamId', '==', teamId),
     orderBy('createdAt', 'desc'),
     fsLimit(limit)
   );
-
   const snapshot = await getDocs(q);
   return snapshot.docs.map((d) => hydrate(d.id, d.data()));
 }
@@ -87,14 +81,12 @@ export async function fetchResultsByTeam(teamId, options = {}) {
 // STEM-107: Live leaderboard across all activities for a single team.
 export function listenToTeamResults(teamId, callback, options = {}) {
   const { limit = 100 } = options;
-
   const q = query(
     collection(db, RESULTS_COLLECTION),
     where('teamId', '==', teamId),
     orderBy('createdAt', 'desc'),
     fsLimit(limit)
   );
-
   return onSnapshot(
     q,
     (snapshot) => {
@@ -106,6 +98,20 @@ export function listenToTeamResults(teamId, callback, options = {}) {
       callback([], error);
     }
   );
+}
+
+// STEM-146: Fetch all results that have GPS coords attached — used by MapScreen.
+export async function fetchResultsWithCoords(options = {}) {
+  const { limit = 200 } = options;
+  const q = query(
+    collection(db, RESULTS_COLLECTION),
+    where('payload.coords', '!=', null),
+    orderBy('payload.coords'),
+    orderBy('createdAt', 'desc'),
+    fsLimit(limit)
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => hydrate(d.id, d.data()));
 }
 
 // STEM-107: Normalize a Firestore doc into the same shape as resultsService output.
