@@ -2,11 +2,14 @@
 // STEM-125: Added useFocusEffect so results refresh when tab becomes visible (Option B fix).
 // STEM-145-fix: Replaced useFocusEffect with useEffect watching isVisible prop — useFocusEffect
 //   doesn't fire with display:none tab toggling.
+// STEM-145: Added VideoPlayer for reviewing recorded earthquake test videos.
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import ResultsTable from '../ResultsTable';
 import { getResultsByActivity } from '../../services/resultsService';
+// STEM-145: Video playback in Results — review recorded earthquake test videos.
+import VideoPlayer from '../VideoPlayer';
 
 export default function Activity4Results({ activity, isVisible }) {
   const [rows, setRows] = useState([]);
@@ -59,6 +62,15 @@ export default function Activity4Results({ activity, isVisible }) {
         <Text style={styles.helperText}>
           Lower peak g = more stable structure. Compare designs to see which dampens vibration best.
         </Text>
+      )}
+      {/* STEM-145: Playback saved earthquake test videos. */}
+      {rows.map((r, i) =>
+        r.payload.videoUri ? (
+          <View key={`vid-${i}`} style={{ marginTop: 12 }}>
+            <Text style={styles.sectionTitle}>{r.payload.design || `Design ${i + 1}`}</Text>
+            <VideoPlayer uri={r.payload.videoUri} />
+          </View>
+        ) : null
       )}
     </View>
   );

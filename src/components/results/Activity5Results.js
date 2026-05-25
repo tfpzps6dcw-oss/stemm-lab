@@ -5,6 +5,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import ResultsTable from '../ResultsTable';
 import { getResultsByActivity } from '../../services/resultsService';
+// STEM-145: Video playback in Results — review recorded stretch movement videos.
+import VideoPlayer from '../VideoPlayer';
 
 export default function Activity5Results({ activity, isVisible }) {
   const [rows, setRows] = useState([]);
@@ -59,6 +61,15 @@ export default function Activity5Results({ activity, isVisible }) {
         <Text style={styles.helperText}>
           Higher score = smoother motion. Aim for 100 by moving slowly and evenly.
         </Text>
+      )}
+      {/* STEM-145: Playback saved stretch movement videos. */}
+      {rows.map((r, i) =>
+        r.payload.videoUri ? (
+          <View key={`vid-${i}`} style={{ marginTop: 12 }}>
+            <Text style={styles.sectionTitle}>{r.payload.motion || `Motion ${i + 1}`}</Text>
+            <VideoPlayer uri={r.payload.videoUri} />
+          </View>
+        ) : null
       )}
     </View>
   );

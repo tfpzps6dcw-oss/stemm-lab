@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { getResultsByActivity } from '../../services/resultsService';
 import { loadTeam } from '../../services/teamStorage';
+// STEM-145: Video playback in Results — review recorded fan test videos.
+import VideoPlayer from '../VideoPlayer';
 
 export default function Activity3Results({ activity, isVisible }) {
   const [results, setResults] = useState([]);
@@ -159,6 +161,10 @@ function ResultCard({ row }) {
             <Text style={styles.detailMeta}>
               {att.material} · {att.distanceCm}cm · {att.actualAngle}°
             </Text>
+            {/* STEM-145: Playback saved fan test video with slow-mo. */}
+            {att.videoUri && (
+              <VideoPlayer uri={att.videoUri} style={{ marginBottom: 12 }} />
+            )}
             {att.photoUri ? (
               <Image source={{ uri: att.photoUri }} style={styles.photoThumb} />
             ) : (

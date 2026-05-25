@@ -5,6 +5,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import ResultsTable from '../ResultsTable';
 import { getResultsByActivity } from '../../services/resultsService';
+// STEM-145: Video playback in Results — review recorded breathing test videos.
+import VideoPlayer from '../VideoPlayer';
 
 export default function Activity7Results({ activity, isVisible }) {
   const [rows, setRows] = useState([]);
@@ -61,6 +63,14 @@ export default function Activity7Results({ activity, isVisible }) {
         <Text style={styles.helperText}>
           Δ = difference between rest and active BPM. Larger Δ = bigger response to exercise.
         </Text>
+      )}
+      {/* STEM-145: Playback saved breathing test videos. */}
+      {rows.map((r, i) =>
+        r.payload.videoUri ? (
+          <View key={`vid-${i}`} style={{ marginTop: 12 }}>
+            <VideoPlayer uri={r.payload.videoUri} />
+          </View>
+        ) : null
       )}
     </View>
   );

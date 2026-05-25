@@ -1,3 +1,4 @@
+// STEM-146: Added Map button to header to navigate to GPS map screen.
 import React from 'react';
 import {
   View,
@@ -44,6 +45,13 @@ export default function HomeScreen({ navigation, team, onResetTeam }) {
           </Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
+          {/* STEM-146: Navigate to GPS map screen. */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Map')}
+            style={styles.resetButton}
+          >
+            <Text style={styles.resetButtonText}>Map</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => navigation.navigate('Leaderboard')}
             style={styles.resetButton}
