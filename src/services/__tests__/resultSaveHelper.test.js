@@ -1,4 +1,5 @@
 // STEM-108: Tests for saveResult — mocks all four dependencies.
+// STEM-151: Added coords: null to samplePayload to match GPS tagging added in STEM-146.
 
 import { saveResult } from '../resultSaveHelper';
 import { insertResult, markSynced } from '../resultsService';
@@ -39,7 +40,8 @@ beforeEach(() => {
   markSynced.mockResolvedValue(undefined);
 });
 
-const samplePayload = { bestDesign: 'plastic parachute', timeToHit: 1.42 };
+// STEM-151: coords: null added — saveResult now attaches GPS coords from STEM-146.
+const samplePayload = { bestDesign: 'plastic parachute', timeToHit: 1.42, coords: null };
 
 describe('saveResult', () => {
   describe('happy path', () => {
